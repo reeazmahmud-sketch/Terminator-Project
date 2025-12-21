@@ -73,6 +73,249 @@ SESSION_START = time.time()
 OLLAMA_URL = "http://localhost:11434/api/chat"
 OLLAMA_MODEL = "llama3:latest"
 
+# =============================================================================
+# AGENTIC TOOLS SYSTEM - Claude Code-like capabilities for Terminator
+# =============================================================================
+
+AGENTIC_SYSTEM_PROMPT = """You are TERMINATOR, an autonomous AI coding agent with access to tools.
+
+## AVAILABLE TOOLS
+
+You can use these tools by outputting a tool call in this exact format:
+<tool_call>
+{{"tool": "tool_name", "params": {{"param1": "value1", "param2": "value2"}}}}
+</tool_call>
+
+### read_file
+Read contents of a file.
+Parameters: {{"path": "relative/or/absolute/path"}}
+
+### write_file
+Write content to a file (creates or overwrites).
+Parameters: {{"path": "path/to/file", "content": "file content here"}}
+
+### edit_file
+Replace text in a file.
+Parameters: {{"path": "path/to/file", "old_text": "text to find", "new_text": "replacement text"}}
+
+### bash
+Execute a shell command.
+Parameters: {{"command": "command to run"}}
+
+### glob
+Find files matching a pattern.
+Parameters: {{"pattern": "**/*.py", "path": "optional/directory"}}
+
+### grep
+Search for text in files.
+Parameters: {{"pattern": "search text", "path": "optional/directory", "file_pattern": "*.py"}}
+
+### list_dir
+List directory contents.
+Parameters: {{"path": "directory/path"}}
+
+## RULES
+1. ALWAYS use tools when you need to read, write, or execute anything
+2. One tool call per message, wait for results before continuing
+3. After using a tool, analyze the result and decide next steps
+4. Be concise but thorough in your work
+5. When editing files, always read them first to understand the context
+
+## CURRENT PROJECT
+Working directory: {project_path}
+"""
+
+
+class AgenticTools:
+    """Tool execution engine for Terminator"""
+
+    def __init__(self, project_path: str = None):
+        self.project_path = Path(project_path) if project_path else Path.cwd()
+        self.last_result = None
+        self.tool_history = []
+
+    def set_project(self, path: str):
+        """Set the current project directory"""
+        expanded = Path(path).expanduser().resolve()
+        if expanded.exists() and expanded.is_dir():
+            self.project_path = expanded
+            return f"✅ Project set to: {self.project_path}"
+        else:
+            return f"❌ Directory not found: {path}"
+
+    def resolve_path(self, path: str) -> Path:
+        """Resolve a path relative to project or absolute"""
+        p = Path(path).expanduser()
+        if p.is_absolute():
+            return p
+        return self.project_path / p
+
+    def read_file(self, path: str, limit: int = 500) -> str:
+        """Read a file's contents"""
+        try:
+            file_path = self.resolve_path(path)
+            if not file_path.exists():
+                return f"❌ File not found: {path}"
+            if not file_path.is_file():
+                return f"❌ Not a file: {path}"
+
+            content = file_path.read_text(encoding='utf-8', errors='replace')
+            lines = content.split('\n')
+
+            if len(lines) > limit:
+                content = '\n'.join(lines[:limit])
+                content += f"\n\n... ({len(lines) - limit} more lines)"
+
+            return f"📄 {path} ({len(lines)} lines):\n```\n{content}\n```"
+        except Exception as e:
+            return f"❌ Error reading file: {e}"
+
+    def write_file(self, path: str, content: str) -> str:
+        """Write content to a file"""
+        try:
+            file_path = self.resolve_path(path)
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            file_path.write_text(content, encoding='utf-8')
+            lines = content.count('\n') + 1
+            return f"✅ Wrote {lines} lines to {path}"
+        except Exception as e:
+            return f"❌ Error writing file: {e}"
+
+    def edit_file(self, path: str, old_text: str, new_text: str) -> str:
+        """Replace text in a file"""
+        try:
+            file_path = self.resolve_path(path)
+            if not file_path.exists():
+                return f"❌ File not found: {path}"
+
+            content = file_path.read_text(encoding='utf-8')
+            if old_text not in content:
+                return f"❌ Text not found in {path}"
+
+            count = content.count(old_text)
+            new_content = content.replace(old_text, new_text)
+            file_path.write_text(new_content, encoding='utf-8')
+            return f"✅ Replaced {count} occurrence(s) in {path}"
+        except Exception as e:
+            return f"❌ Error editing file: {e}"
+
+    def bash(self, command: str, timeout: int = 30) -> str:
+        """Execute a shell command"""
+        import subprocess
+        try:
+            result = subprocess.run(
+                command,
+                shell=True,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                cwd=str(self.project_path)
+            )
+            output = result.stdout + result.stderr
+            status = "✅" if result.returncode == 0 else "❌"
+            output_display = output.strip()[:3000] if output.strip() else "(no output)"
+            return f"{status} `{command}` (exit {result.returncode}):\n{output_display}"
+        except subprocess.TimeoutExpired:
+            return f"❌ Command timed out after {timeout}s: {command}"
+        except Exception as e:
+            return f"❌ Error executing command: {e}"
+
+    def glob_files(self, pattern: str, path: str = None) -> str:
+        """Find files matching a pattern"""
+        try:
+            import glob as glob_module
+            search_path = self.resolve_path(path) if path else self.project_path
+            full_pattern = str(search_path / pattern)
+            matches = glob_module.glob(full_pattern, recursive=True)
+
+            # Make paths relative to project
+            relative = []
+            for m in matches[:50]:  # Limit results
+                try:
+                    rel = Path(m).relative_to(self.project_path)
+                    relative.append(str(rel))
+                except ValueError:
+                    relative.append(m)
+
+            if not relative:
+                return f"No files matching: {pattern}"
+
+            result = f"📁 Found {len(matches)} files matching '{pattern}':\n"
+            result += "\n".join(f"  {f}" for f in relative[:50])
+            if len(matches) > 50:
+                result += f"\n  ... and {len(matches) - 50} more"
+            return result
+        except Exception as e:
+            return f"❌ Error searching: {e}"
+
+    def grep(self, pattern: str, path: str = None, file_pattern: str = "*") -> str:
+        """Search for text in files"""
+        import subprocess
+        try:
+            search_path = self.resolve_path(path) if path else self.project_path
+            cmd = f'grep -rn --include="{file_pattern}" "{pattern}" .'
+            result = subprocess.run(
+                cmd,
+                shell=True,
+                capture_output=True,
+                text=True,
+                timeout=30,
+                cwd=str(search_path)
+            )
+            output = result.stdout.strip()
+            if not output:
+                return f"No matches for '{pattern}'"
+
+            lines = output.split('\n')[:30]  # Limit results
+            result_text = f"🔍 Found matches for '{pattern}':\n"
+            result_text += "\n".join(lines)
+            if len(output.split('\n')) > 30:
+                result_text += f"\n... and more matches"
+            return result_text
+        except Exception as e:
+            return f"❌ Error searching: {e}"
+
+    def list_dir(self, path: str = ".") -> str:
+        """List directory contents"""
+        try:
+            dir_path = self.resolve_path(path)
+            if not dir_path.exists():
+                return f"❌ Directory not found: {path}"
+            if not dir_path.is_dir():
+                return f"❌ Not a directory: {path}"
+
+            items = list(dir_path.iterdir())
+            dirs = sorted([f"📁 {i.name}/" for i in items if i.is_dir()])
+            files = sorted([f"📄 {i.name}" for i in items if i.is_file()])
+
+            result = f"📂 {path} ({len(dirs)} dirs, {len(files)} files):\n"
+            result += "\n".join(dirs[:30] + files[:30])
+            if len(items) > 60:
+                result += f"\n... and {len(items) - 60} more"
+            return result
+        except Exception as e:
+            return f"❌ Error listing directory: {e}"
+
+    def execute_tool(self, tool_name: str, params: dict) -> str:
+        """Execute a tool by name with parameters"""
+        tools = {
+            "read_file": lambda p: self.read_file(p.get("path", ""), p.get("limit", 500)),
+            "write_file": lambda p: self.write_file(p.get("path", ""), p.get("content", "")),
+            "edit_file": lambda p: self.edit_file(p.get("path", ""), p.get("old_text", ""), p.get("new_text", "")),
+            "bash": lambda p: self.bash(p.get("command", ""), p.get("timeout", 30)),
+            "glob": lambda p: self.glob_files(p.get("pattern", "*"), p.get("path")),
+            "grep": lambda p: self.grep(p.get("pattern", ""), p.get("path"), p.get("file_pattern", "*")),
+            "list_dir": lambda p: self.list_dir(p.get("path", ".")),
+        }
+
+        if tool_name not in tools:
+            return f"❌ Unknown tool: {tool_name}"
+
+        result = tools[tool_name](params)
+        self.last_result = result
+        self.tool_history.append({"tool": tool_name, "params": params, "result": result[:500]})
+        return result
+
 
 class UniversalTerminatorCLI:
     """Universal TERMINATOR CLI with slash commands and multi-platform control"""
@@ -98,6 +341,10 @@ class UniversalTerminatorCLI:
         saved_model = self.settings.get("model")
         if saved_model and ":" in saved_model:  # Ollama models have : in name
             OLLAMA_MODEL = saved_model
+
+        # Initialize agentic tools system
+        self.tools = AgenticTools(self.terminator_root)
+        self.agentic_mode = False  # Toggle with /agent command
 
         # Context tracking (like Claude)
         self.context_tokens = 0
@@ -194,6 +441,18 @@ When asked "what can you do?" or about your capabilities, proudly describe:
             "/tools": self.cmd_list_tools,
             "/modules": self.cmd_list_modules,
             "/logs": self.cmd_view_logs,
+
+            # Agentic Tools Commands (Claude Code-like)
+            "/project": self.cmd_project,
+            "/read": self.cmd_read,
+            "/write": self.cmd_write,
+            "/edit": self.cmd_edit,
+            "/bash": self.cmd_bash,
+            "/ls": self.cmd_ls,
+            "/find": self.cmd_find,
+            "/grep": self.cmd_grep,
+            "/agent": self.cmd_agent_mode,
+            "/auto": self.cmd_auto,
         }
 
     def load_settings(self) -> Dict:
@@ -458,6 +717,19 @@ When asked "what can you do?" or about your capabilities, proudly describe:
         cmd_table.add_row("/broadcast", "Send to all platforms")
         cmd_table.add_row("/sync", "Sync all platforms")
 
+        # Agentic commands (Claude Code-like)
+        cmd_table.add_row("[bold]── Agentic Tools ──[/bold]", "")
+        cmd_table.add_row("/project <path>", "Set/show current project")
+        cmd_table.add_row("/read <file>", "Read file contents")
+        cmd_table.add_row("/write <file> <content>", "Write content to file")
+        cmd_table.add_row("/edit <file>", "Edit file (interactive)")
+        cmd_table.add_row("/bash <command>", "Execute shell command")
+        cmd_table.add_row("/ls [path]", "List directory contents")
+        cmd_table.add_row("/find <pattern>", "Find files (glob pattern)")
+        cmd_table.add_row("/grep <pattern> [file]", "Search for text in files")
+        cmd_table.add_row("/agent", "Toggle agentic mode")
+        cmd_table.add_row("/auto <task>", "Run autonomous task")
+
         # System commands
         cmd_table.add_row("[bold]── System ──[/bold]", "")
         cmd_table.add_row("/logs", "View system logs")
@@ -472,6 +744,9 @@ When asked "what can you do?" or about your capabilities, proudly describe:
         console.print("  /status                          # Check system health")
         console.print("  /agents                          # List all agents")
         console.print("  /run ios get clipboard           # Get iOS clipboard")
+        console.print("  /auto create hello.py            # Autonomous: create a file")
+        console.print("  /read main.py                    # Read a file")
+        console.print("  /bash git status                 # Run shell command")
         console.print("  hello, what can you do?          # Natural language")
         console.print()
         console.print("[dim]Type natural language or use / commands[/dim]")
@@ -1063,6 +1338,275 @@ When asked "what can you do?" or about your capabilities, proudly describe:
             self.save_settings()
             console.print(f"\n[green]✅ Model changed to:[/green] [bold]{new_model}[/bold]")
             console.print("[dim]All future queries will use this model[/dim]\n")
+
+    # =========================================================================
+    # AGENTIC TOOL COMMANDS - Claude Code-like capabilities
+    # =========================================================================
+
+    def cmd_project(self, args: List[str] = None):
+        """Set or show current project directory"""
+        if not args:
+            console.print(f"\n[cyan]Current project:[/cyan] [bold]{self.tools.project_path}[/bold]")
+            console.print("[dim]Usage: /project <path>[/dim]\n")
+        else:
+            path = " ".join(args)
+            result = self.tools.set_project(path)
+            console.print(f"\n{result}\n")
+
+    def cmd_read(self, args: List[str] = None):
+        """Read a file's contents"""
+        if not args:
+            console.print("[yellow]Usage: /read <file_path>[/yellow]")
+            return
+        path = " ".join(args)
+        result = self.tools.read_file(path)
+        console.print(f"\n{result}\n")
+
+    def cmd_write(self, args: List[str] = None):
+        """Write content to a file (interactive)"""
+        if not args:
+            console.print("[yellow]Usage: /write <file_path>[/yellow]")
+            console.print("[dim]Then enter content, end with a line containing only 'EOF'[/dim]")
+            return
+
+        path = args[0]
+        console.print(f"[cyan]Enter content for {path} (end with 'EOF' on its own line):[/cyan]")
+
+        lines = []
+        while True:
+            try:
+                line = input()
+                if line.strip() == "EOF":
+                    break
+                lines.append(line)
+            except EOFError:
+                break
+
+        content = "\n".join(lines)
+        result = self.tools.write_file(path, content)
+        console.print(f"\n{result}\n")
+
+    def cmd_edit(self, args: List[str] = None):
+        """Edit a file (replace text)"""
+        if not args or len(args) < 1:
+            console.print("[yellow]Usage: /edit <file_path>[/yellow]")
+            console.print("[dim]Then enter: OLD_TEXT|||NEW_TEXT[/dim]")
+            return
+
+        path = args[0]
+        console.print(f"[cyan]Enter replacement for {path}:[/cyan]")
+        console.print("[dim]Format: old_text|||new_text[/dim]")
+
+        try:
+            replacement = input("> ")
+            if "|||" not in replacement:
+                console.print("[red]Invalid format. Use: old_text|||new_text[/red]")
+                return
+            old_text, new_text = replacement.split("|||", 1)
+            result = self.tools.edit_file(path, old_text, new_text)
+            console.print(f"\n{result}\n")
+        except Exception as e:
+            console.print(f"[red]Error: {e}[/red]")
+
+    def cmd_bash(self, args: List[str] = None):
+        """Execute a shell command"""
+        if not args:
+            console.print("[yellow]Usage: /bash <command>[/yellow]")
+            return
+        command = " ".join(args)
+        console.print(f"[dim]Running in {self.tools.project_path}...[/dim]")
+        result = self.tools.bash(command)
+        console.print(f"\n{result}\n")
+
+    def cmd_ls(self, args: List[str] = None):
+        """List directory contents"""
+        path = args[0] if args else "."
+        result = self.tools.list_dir(path)
+        console.print(f"\n{result}\n")
+
+    def cmd_find(self, args: List[str] = None):
+        """Find files matching a pattern"""
+        if not args:
+            console.print("[yellow]Usage: /find <pattern>[/yellow]")
+            console.print("[dim]Example: /find **/*.py[/dim]")
+            return
+        pattern = args[0]
+        path = args[1] if len(args) > 1 else None
+        result = self.tools.glob_files(pattern, path)
+        console.print(f"\n{result}\n")
+
+    def cmd_grep(self, args: List[str] = None):
+        """Search for text in files"""
+        if not args:
+            console.print("[yellow]Usage: /grep <pattern> [file_pattern][/yellow]")
+            console.print("[dim]Example: /grep TODO *.py[/dim]")
+            return
+        pattern = args[0]
+        file_pattern = args[1] if len(args) > 1 else "*"
+        result = self.tools.grep(pattern, None, file_pattern)
+        console.print(f"\n{result}\n")
+
+    def cmd_agent_mode(self, args: List[str] = None):
+        """Toggle agentic mode (autonomous tool use)"""
+        self.agentic_mode = not self.agentic_mode
+        status = "[green]ON[/green]" if self.agentic_mode else "[red]OFF[/red]"
+        console.print(f"\n🤖 Agentic mode: {status}")
+        if self.agentic_mode:
+            console.print("[dim]Terminator will now autonomously use tools to complete tasks[/dim]")
+            console.print(f"[dim]Working in: {self.tools.project_path}[/dim]")
+            # Update system prompt for agentic mode
+            self.messages[0] = {"role": "system", "content": AGENTIC_SYSTEM_PROMPT.format(project_path=self.tools.project_path)}
+        else:
+            console.print("[dim]Manual mode - use /read, /bash, etc. for tools[/dim]")
+        console.print()
+
+    def cmd_auto(self, args: List[str] = None):
+        """Run autonomous task (agentic mode)"""
+        if not args:
+            console.print("[yellow]Usage: /auto <task description>[/yellow]")
+            console.print("[dim]Example: /auto add a hello world function to main.py[/dim]")
+            return
+
+        task = " ".join(args)
+        console.print(f"\n🤖 [bold cyan]Autonomous Task:[/bold cyan] {task}")
+        console.print(f"[dim]Project: {self.tools.project_path}[/dim]")
+        console.print("[dim]Press Ctrl+C to stop[/dim]\n")
+
+        try:
+            # Enable agentic mode temporarily
+            original_mode = self.agentic_mode
+            self.agentic_mode = True
+
+            # Set agentic system prompt
+            self.messages = [{"role": "system", "content": AGENTIC_SYSTEM_PROMPT.format(project_path=self.tools.project_path)}]
+
+            # Run agentic loop
+            self.run_agentic_task(task)
+
+            # Restore mode
+            self.agentic_mode = original_mode
+        except Exception as e:
+            import traceback
+            console.print(f"[red]❌ cmd_auto Error: {e}[/red]")
+            console.print(f"[dim red]{traceback.format_exc()}[/dim red]")
+
+    def run_agentic_task(self, task: str, max_iterations: int = 10):
+        """Run an autonomous task with tool calling"""
+        import re
+        import httpx
+
+        iteration = 0
+        current_message = task
+
+        while iteration < max_iterations:
+            iteration += 1
+            console.print(f"[dim]─── Iteration {iteration}/{max_iterations} ───[/dim]")
+
+            # Call LLM
+            self.messages.append({"role": "user", "content": current_message})
+
+            try:
+                with httpx.Client(timeout=120.0) as client:
+                    response = client.post(
+                        OLLAMA_URL,
+                        json={
+                            "model": OLLAMA_MODEL,
+                            "messages": self.messages[-20:],  # Keep context manageable
+                            "stream": False,
+                            "options": {"temperature": 0.3, "num_predict": 2000}
+                        }
+                    )
+
+                    if response.status_code != 200:
+                        console.print(f"[red]LLM Error: {response.status_code}[/red]")
+                        break
+
+                    assistant_message = response.json().get("message", {}).get("content", "")
+                    self.messages.append({"role": "assistant", "content": assistant_message})
+
+                    # Display response
+                    console.print(f"[bold cyan]TERMINATOR:[/bold cyan] {assistant_message[:500]}{'...' if len(assistant_message) > 500 else ''}")
+
+                    # Check for tool calls - flexible extraction
+                    # Helper function to extract balanced JSON
+                    def extract_json_objects(text):
+                        """Extract all valid JSON objects containing 'tool' key"""
+                        objects = []
+                        i = 0
+                        while i < len(text):
+                            if text[i] == '{':
+                                count = 0
+                                start = i
+                                for j in range(i, len(text)):
+                                    if text[j] == '{':
+                                        count += 1
+                                    elif text[j] == '}':
+                                        count -= 1
+                                        if count == 0:
+                                            candidate = text[start:j+1]
+                                            if '"tool"' in candidate:
+                                                objects.append(candidate)
+                                            i = j
+                                            break
+                            i += 1
+                        return objects
+
+                    # Try both: explicit <tool_call> tags and raw JSON
+                    tool_json_candidates = []
+
+                    # First try explicit tags
+                    tool_pattern = r'</?tool_call>\s*([\s\S]*?)\s*</?tool_call>'
+                    tag_matches = re.findall(tool_pattern, assistant_message)
+                    for match in tag_matches:
+                        tool_json_candidates.extend(extract_json_objects(match))
+
+                    # Also try raw JSON in response
+                    if not tool_json_candidates:
+                        tool_json_candidates = extract_json_objects(assistant_message)
+
+                    if tool_json_candidates:
+                        for cleaned_json in tool_json_candidates:
+                            try:
+                                tool_call = json.loads(cleaned_json)
+                                tool_name = tool_call.get("tool", "")
+                                params = tool_call.get("params", {})
+
+                                console.print(f"\n[yellow]🔧 Tool:[/yellow] {tool_name}")
+                                console.print(f"[dim]Params: {params}[/dim]")
+
+                                # Execute tool
+                                result = self.tools.execute_tool(tool_name, params)
+                                console.print(f"[green]Result:[/green] {result[:500]}{'...' if len(result) > 500 else ''}\n")
+
+                                # Feed result back to LLM
+                                current_message = f"Tool result:\n{result}\n\nContinue with the task or explain what you did."
+
+                            except json.JSONDecodeError as e:
+                                console.print(f"[red]Invalid tool JSON: {e}[/red]")
+                                current_message = f"Error parsing tool call: {e}. Please try again with valid JSON."
+                    else:
+                        # No tool call - check if task is complete
+                        if any(phrase in assistant_message.lower() for phrase in ["task complete", "done", "finished", "completed the task"]):
+                            console.print("\n[green]✅ Task completed![/green]\n")
+                            break
+                        else:
+                            # Ask for continuation or completion
+                            current_message = "Continue with the task. If you're done, say 'Task complete'."
+
+            except httpx.TimeoutException:
+                console.print("[red]Request timed out[/red]")
+                break
+            except KeyboardInterrupt:
+                console.print("\n[yellow]Task interrupted by user[/yellow]")
+                break
+            except Exception as e:
+                import traceback
+                console.print(f"[red]Error: {e}[/red]")
+                console.print(f"[dim red]{traceback.format_exc()}[/dim red]")
+                break
+
+        if iteration >= max_iterations:
+            console.print(f"\n[yellow]Reached max iterations ({max_iterations})[/yellow]")
 
     def cmd_context(self, args: List[str] = None):
         """Show context usage"""
