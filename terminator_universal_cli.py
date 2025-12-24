@@ -813,11 +813,17 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
         """Display rich Claude Code-inspired landing page"""
         console.clear()
 
-        # Clean TERMINATOR header
-        console.print()
-        console.print("[bold red]  ╔════════════════════════════════════════════════════════════╗[/bold red]")
-        console.print("[bold red]  ║  [bold white]T E R M I N A T O R[/bold white]  •  Autonomous AI Agent        [bold red]║[/bold red]")
-        console.print("[bold red]  ╚════════════════════════════════════════════════════════════╝[/bold red]")
+        # ASCII Art TERMINATOR Logo - Big and Bold
+        logo = """[bold red]
+  ████████╗███████╗██████╗ ███╗   ███╗██╗███╗   ██╗ █████╗ ████████╗ ██████╗ ██████╗
+  ╚══██╔══╝██╔════╝██╔══██╗████╗ ████║██║████╗  ██║██╔══██╗╚══██╔══╝██╔═══██╗██╔══██╗
+     ██║   █████╗  ██████╔╝██╔████╔██║██║██╔██╗ ██║███████║   ██║   ██║   ██║██████╔╝
+     ██║   ██╔══╝  ██╔══██╗██║╚██╔╝██║██║██║╚██╗██║██╔══██║   ██║   ██║   ██║██╔══██╗
+     ██║   ███████╗██║  ██║██║ ╚═╝ ██║██║██║ ╚████║██║  ██║   ██║   ╚██████╔╝██║  ██║
+     ╚═╝   ╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝
+[/bold red]"""
+        console.print(logo)
+        console.print("[dim]                          Autonomous AI Agent • Universal Control[/dim]")
         console.print()
 
         # System Status Panel
@@ -1933,11 +1939,19 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
 
             console.print()
 
-    def display_response(self, message: str, truncate: bool = True):
-        """Display TERMINATOR response with Claude Code-style formatting"""
-        # Add separator
+    def display_user_message(self, message: str):
+        """Display user message with distinct yellow/gold theme"""
         console.print()
-        console.rule("[dim]Response[/dim]", style="dim cyan")
+        panel = Panel(
+            f"[bold white]{message}[/bold white]",
+            title="[bold yellow]You[/bold yellow]",
+            border_style="yellow",
+            padding=(0, 2)
+        )
+        console.print(panel)
+
+    def display_response(self, message: str, truncate: bool = True):
+        """Display TERMINATOR response with red/cyan theme"""
         console.print()
 
         # Truncate if needed
@@ -1950,14 +1964,20 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
             # Use markdown rendering for code
             try:
                 md = Markdown(display_text)
-                console.print(md)
+                content = md
             except:
-                # Fallback to simple print
-                console.print(display_text)
+                content = display_text
         else:
-            # Simple text response with nice formatting
-            console.print(f"[white]{display_text}[/white]")
+            content = f"[white]{display_text}[/white]"
 
+        # Display in TERMINATOR-themed panel
+        panel = Panel(
+            content,
+            title="[bold red]TERMINATOR[/bold red]",
+            border_style="red",
+            padding=(1, 2)
+        )
+        console.print(panel)
         console.print()
 
     def display_input_box(self):
@@ -1981,12 +2001,13 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
                 # Display input box with status
                 self.display_input_box()
 
-                # Get user input (Claude Code-style prompt)
-                user_input = Prompt.ask("[bold cyan]>[/bold cyan]")
+                # Get user input with yellow theme (TERMINATOR color scheme)
+                user_input = Prompt.ask("[bold yellow]>[/bold yellow]")
 
-                # Add bottom separator after input
+                # Add bottom separator and display user message
                 if user_input.strip():
                     console.rule(style="dim cyan")
+                    self.display_user_message(user_input)
                     self.process_command(user_input)
 
                     # Increment request counter
