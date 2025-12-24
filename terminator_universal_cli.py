@@ -1990,10 +1990,9 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
                 # Get user input with yellow theme (TERMINATOR color scheme)
                 user_input = Prompt.ask("[bold yellow]>[/bold yellow]")
 
-                # Add bottom separator and display user message
+                # Add bottom separator and process command (no echo)
                 if user_input.strip():
                     console.rule(style="dim cyan")
-                    self.display_user_message(user_input)
                     self.process_command(user_input)
 
                     # Increment request counter
