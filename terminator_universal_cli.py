@@ -813,21 +813,12 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
         """Display rich Claude Code-inspired landing page"""
         console.clear()
 
-        # ASCII Art TERMINATOR Logo
-        logo = """[bold red]
-╔════════════════════════════════════════════════════════════════╗
-║                                                                ║
-║  ████████╗███████╗██████╗ ███╗   ███╗██╗███╗   ██╗ █████╗    ║
-║  ╚══██╔══╝██╔════╝██╔══██╗████╗ ████║██║████╗  ██║██╔══██╗   ║
-║     ██║   █████╗  ██████╔╝██╔████╔██║██║██╔██╗ ██║███████║   ║
-║     ██║   ██╔══╝  ██╔══██╗██║╚██╔╝██║██║██║╚██╗██║██╔══██║   ║
-║     ██║   ███████╗██║  ██║██║ ╚═╝ ██║██║██║ ╚████║██║  ██║   ║
-║     ╚═╝   ╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝   ║
-║                                                                ║
-║             [bold cyan]Autonomous AI Agent • Universal Control[/bold cyan]             ║
-╚════════════════════════════════════════════════════════════════╝[/bold red]
-"""
-        console.print(logo)
+        # Clean TERMINATOR header
+        console.print()
+        console.print("[bold red]  ╔════════════════════════════════════════════════════════════╗[/bold red]")
+        console.print("[bold red]  ║  [bold white]T E R M I N A T O R[/bold white]  •  Autonomous AI Agent        [bold red]║[/bold red]")
+        console.print("[bold red]  ╚════════════════════════════════════════════════════════════╝[/bold red]")
+        console.print()
 
         # System Status Panel
         status_table = Table(show_header=False, box=None, padding=(0, 2))
@@ -856,22 +847,8 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
 
         console.print(Panel(status_table, title="[bold cyan]System Status[/bold cyan]", border_style="cyan", padding=(1, 2)))
 
-        # Quick Start Help
-        help_text = """[bold]Quick Start:[/bold]
-  • Type naturally to chat with TERMINATOR
-  • Use [cyan]/help[/cyan] to see all slash commands
-  • TERMINATOR learns when it doesn't know something
-  • Press [yellow]Ctrl+C[/yellow] to exit
-
-[bold]Popular Commands:[/bold]
-  [cyan]/agents[/cyan]      - List all 38+ specialized agents
-  [cyan]/tools[/cyan]       - Show available tool integrations
-  [cyan]/healthCheck[/cyan] - Run complete system diagnostics
-  [cyan]/connectiOS[/cyan]  - Control your iPhone from terminal
-  [cyan]/model[/cyan]       - Switch between Ollama models
-"""
-        console.print(Panel(help_text, title="[bold green]Welcome to TERMINATOR[/bold green]", border_style="green", padding=(1, 2)))
-
+        # Simple help hint
+        console.print("[dim]Type your message or use [cyan]/help[/cyan] for commands • Press [yellow]Ctrl+C[/yellow] to exit[/dim]")
         console.print()
 
     # ==================== SLASH COMMANDS ====================
