@@ -1938,18 +1938,13 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
             console.print()
 
     def display_user_message(self, message: str):
-        """Display user message with distinct yellow/gold theme"""
+        """Display user message with yellow color - no borders"""
         console.print()
-        panel = Panel(
-            f"[bold white]{message}[/bold white]",
-            title="[bold yellow]You[/bold yellow]",
-            border_style="yellow",
-            padding=(0, 2)
-        )
-        console.print(panel)
+        console.print(f"[bold yellow]You:[/bold yellow] [white]{message}[/white]")
+        console.print()
 
     def display_response(self, message: str, truncate: bool = True):
-        """Display TERMINATOR response with red/cyan theme"""
+        """Display TERMINATOR response with cyan color - no borders"""
         console.print()
 
         # Truncate if needed
@@ -1962,20 +1957,13 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
             # Use markdown rendering for code
             try:
                 md = Markdown(display_text)
-                content = md
+                console.print(f"[bold cyan]TERMINATOR:[/bold cyan]")
+                console.print(md)
             except:
-                content = display_text
+                console.print(f"[bold cyan]TERMINATOR:[/bold cyan] [white]{display_text}[/white]")
         else:
-            content = f"[white]{display_text}[/white]"
+            console.print(f"[bold cyan]TERMINATOR:[/bold cyan] [white]{display_text}[/white]")
 
-        # Display in TERMINATOR-themed panel
-        panel = Panel(
-            content,
-            title="[bold red]TERMINATOR[/bold red]",
-            border_style="red",
-            padding=(1, 2)
-        )
-        console.print(panel)
         console.print()
 
     def display_input_box(self):
