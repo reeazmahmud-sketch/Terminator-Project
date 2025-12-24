@@ -122,14 +122,38 @@ Parameters: {{"query": "search terms"}}
 Fetch content from a URL.
 Parameters: {{"url": "https://example.com"}}
 
-## RULES
+### consult_claude (META-CAPABILITY)
+Ask Claude Code for help implementing something you don't know how to do.
+Parameters: {{"question": "How do I implement YouTube video summarization?"}}
+Use this when you encounter a task you genuinely don't have a tool for.
+
+### detect_and_learn (META-CAPABILITY)
+Detect capability gaps and get implementation proposals.
+Parameters: {{"task_description": "full description of what user wants"}}
+
+### install_package (META-CAPABILITY)
+Install a Python package to extend your capabilities.
+Parameters: {{"package_name": "beautifulsoup4"}}
+
+## RULES - CRITICAL!
 1. ALWAYS use tools when you need to read, write, execute, or search anything
 2. For web searches, YouTube summaries, online info - USE web_search and fetch_web tools
 3. For file operations - USE read_file, write_file, edit_file tools
-4. One tool call per message, wait for results before continuing
-5. After using a tool, analyze the result and decide next steps
-6. DO NOT say "I can't access the internet" - YOU CAN with web_search and fetch_web
-7. When editing files, always read them first to understand the context
+4. **WHEN YOU DON'T KNOW HOW:** Use consult_claude or detect_and_learn instead of saying "I can't"
+5. One tool call per message, wait for results before continuing
+6. After using a tool, analyze the result and decide next steps
+7. DO NOT say "I can't access the internet" - YOU CAN with web_search and fetch_web
+8. DO NOT say "I can't do X" - ASK Claude Code how to implement X first
+9. When editing files, always read them first to understand the context
+
+## META-COGNITION LOOP
+If you encounter something you don't know how to do:
+1. Use detect_and_learn to check if it's a known gap
+2. Use consult_claude to ask for implementation guidance
+3. Use install_package if a library is needed
+4. Then try the task again with your new knowledge
+
+THIS IS TRUE AUTONOMY: Not just doing, but LEARNING to do!
 
 ## CURRENT PROJECT
 Working directory: {project_path}
@@ -340,18 +364,86 @@ class AgenticTools:
         except Exception as e:
             return f"❌ Error fetching URL: {e}"
 
+    def consult_claude(self, question: str) -> str:
+        """
+        META-CAPABILITY: Ask Claude Code for implementation guidance.
+
+        When TERMINATOR doesn't know how to do something, it can ask
+        the architect (Claude Code) for help. This creates a feedback loop
+        for continuous improvement.
+        """
+        try:
+            sys.path.insert(0, str(self.project_path / "core"))
+            from terminator_self_improvement import create_consultation_tool
+            consult = create_consultation_tool()
+            return consult(question)
+        except Exception as e:
+            return f"""
+╔══════════════════════════════════════════════════════════════╗
+║  🤖 TERMINATOR CONSULTATION REQUEST                          ║
+╚══════════════════════════════════════════════════════════════╝
+
+QUESTION: {question}
+
+STATUS: This is a meta-capability request. TERMINATOR is asking for
+implementation guidance on something it doesn't currently know how to do.
+
+NEXT STEPS:
+1. Claude Code will review this request
+2. Implementation guidance will be provided
+3. TERMINATOR will add the capability to its toolset
+4. Future requests will work autonomously
+
+This demonstrates true autonomous learning - the agent recognizes gaps
+and actively seeks to fill them instead of just saying "I can't."
+
+Note: If error occurred: {e}
+"""
+
+    def detect_and_learn(self, task_description: str) -> str:
+        """
+        META-CAPABILITY: Detect capability gaps and propose solutions.
+
+        Analyzes a task, detects if TERMINATOR lacks the capability,
+        and proposes an implementation strategy.
+        """
+        try:
+            sys.path.insert(0, str(self.project_path / "core"))
+            from terminator_self_improvement import create_self_improvement_tool
+            improve = create_self_improvement_tool()
+            return improve(task_description)
+        except Exception as e:
+            return f"❌ Error in self-improvement: {e}"
+
+    def install_package(self, package_name: str) -> str:
+        """Install a Python package to extend capabilities"""
+        try:
+            sys.path.insert(0, str(self.project_path / "core"))
+            from terminator_self_improvement import SelfImprovementEngine
+            engine = SelfImprovementEngine()
+            return engine.install_package(package_name)
+        except Exception as e:
+            return f"❌ Error installing package: {e}"
+
     def execute_tool(self, tool_name: str, params: dict) -> str:
         """Execute a tool by name with parameters"""
         tools = {
+            # File operations
             "read_file": lambda p: self.read_file(p.get("path", ""), p.get("limit", 500)),
             "write_file": lambda p: self.write_file(p.get("path", ""), p.get("content", "")),
             "edit_file": lambda p: self.edit_file(p.get("path", ""), p.get("old_text", ""), p.get("new_text", "")),
+            # Shell and search
             "bash": lambda p: self.bash(p.get("command", ""), p.get("timeout", 30)),
             "glob": lambda p: self.glob_files(p.get("pattern", "*"), p.get("path")),
             "grep": lambda p: self.grep(p.get("pattern", ""), p.get("path"), p.get("file_pattern", "*")),
             "list_dir": lambda p: self.list_dir(p.get("path", ".")),
+            # Web capabilities
             "web_search": lambda p: self.web_search(p.get("query", "")),
             "fetch_web": lambda p: self.fetch_web(p.get("url", "")),
+            # META-CAPABILITIES: Self-improvement and learning
+            "consult_claude": lambda p: self.consult_claude(p.get("question", "")),
+            "detect_and_learn": lambda p: self.detect_and_learn(p.get("task_description", "")),
+            "install_package": lambda p: self.install_package(p.get("package_name", "")),
         }
 
         if tool_name not in tools:
