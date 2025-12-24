@@ -9,10 +9,32 @@ TERMINATOR is a multi-interface autonomous AI agent system with 38+ specialized 
 ## Requirements
 
 - **Python 3.13+** (verify with `python3 --version`)
+  - Uses modern asyncio features and type hints
+  - Virtual environments in `/venv/` (Python 3.14 available)
 - **Node.js** (for web terminal development)
+  - npm 8.0+ recommended
 - **Ollama** (for local LLM, or cloud API keys for Gemini/Claude)
+  - Default backend, runs on localhost:11434
+  - Must have llama3 model pulled: `ollama pull llama3`
 
 ## Quick Start Commands
+
+### First-Time Setup
+
+```bash
+# 1. Install Python dependencies
+pip3 install -r requirements.txt
+
+# 2. Ensure Ollama is running (or set cloud API keys)
+ollama serve                # In separate terminal
+ollama pull llama3         # Download model
+
+# 3. Build web terminal (if using web interface)
+cd terminator-web-terminal && npm install && npm run build && cd ..
+
+# 4. Optional: Install Universal CLI globally
+./install_cli.sh           # Adds 'terminator' command to PATH
+```
 
 ### Running the System
 
@@ -25,15 +47,13 @@ TERMINATOR is a multi-interface autonomous AI agent system with 38+ specialized 
 ./start_terminal_ui.sh     # Rich terminal interface
 ./start_cli.sh             # Minimal CLI
 
-# Universal CLI (NEW - Claude-style slash commands)
-./install_cli.sh           # One-time setup
-terminator                 # Launch from anywhere
+# Universal CLI (Claude-style slash commands)
+terminator                 # Launch from anywhere (after ./install_cli.sh)
+./terminator --help        # Without global install
 
-# Install dependencies (first time only)
-pip3 install -r requirements.txt
-
-# Discover available CLI commands
-./terminator --help
+# Other utilities
+./start_command_center.sh  # Launch command center
+./start_demo.sh            # Demo mode
 ```
 
 ### Development
@@ -41,13 +61,33 @@ pip3 install -r requirements.txt
 ```bash
 # Web terminal development
 cd terminator-web-terminal
-npm install
-npm run dev      # Development server with hot reload
-npm run build    # Production build
+npm install           # Install dependencies (first time)
 
-# Kill port 8000 if already in use
-lsof -ti:8000 | xargs kill
+npm run dev           # Development server with hot reload (port 5173)
+                      # Use this for UI development - changes reflect instantly
+
+npm run build         # Production build to dist/ folder
+                      # Required before running ./start_web_terminal.sh
+
+npm run lint          # Run ESLint on source files
+npm run preview       # Preview production build locally
+
+# Backend doesn't auto-reload - restart ./start_web_terminal.sh after Python changes
 ```
+
+**Port Management:**
+```bash
+# Kill port 8000 if backend already running
+lsof -ti:8000 | xargs kill
+
+# Kill port 5173 if dev server stuck
+lsof -ti:5173 | xargs kill
+```
+
+**Development Workflow:**
+1. UI changes: `npm run dev` in terminator-web-terminal/ - live reload works
+2. Python changes: Edit code, then restart `./start_web_terminal.sh` - no auto-reload
+3. Before committing: `npm run build` to update dist/
 
 ### LLM Backend Setup
 
@@ -268,6 +308,14 @@ Backend voice handling in `/core/voice.py` and `/core/voice_chat.py`
 - Never manually manage the event loop - it's managed by `AgentCommunicationBus._run_loop()`
 - When creating new agents, always register via `bus.register_agent_async(agent_name)` first
 
+**Getting the Bus Instance:**
+```python
+from core.terminator_agent_communication_bus import get_communication_bus
+
+# Singleton pattern - same instance everywhere
+bus = get_communication_bus()
+```
+
 ### Message Priority and Ordering
 Messages in agent queues are ordered by:
 1. **Priority** (CRITICAL=0, HIGH=1, NORMAL=2, LOW=3) - lower value = higher priority
@@ -313,6 +361,30 @@ while True:
     if msg:
         # Process message
         pass
+```
+
+## Tool Discovery
+
+Before implementing new CLI features, always check existing capabilities:
+
+```bash
+./terminator --help           # List all Universal CLI commands
+terminator                    # Launch CLI and use /help for slash commands
+./start_web_terminal.sh --help  # Check web terminal options
+./start_terminal_ui.sh --help   # Check TUI options
+```
+
+**Discovering Agent Capabilities:**
+```bash
+# From Universal CLI
+terminator
+/agents      # List all registered agents and their status
+/tools       # List all available tools and their capabilities
+```
+
+**Checking System State:**
+```bash
+./terminator /healthCheck     # Comprehensive system diagnostics
 ```
 
 ## Common Patterns
@@ -380,7 +452,13 @@ Each agent maintains:
 ### Running Tests
 
 ```bash
-# Python unit tests
+# Automated test runner (recommended)
+./run-tests.sh              # Auto-detect and run all tests
+./run-tests.sh --coverage   # With coverage report
+./run-tests.sh -t test_auth # Run specific test pattern
+./run-tests.sh --json       # JSON output for CI/CD
+
+# Manual test discovery
 python3 -m unittest discover tests
 
 # System diagnostics via CLI
@@ -391,9 +469,12 @@ curl http://localhost:8000/status
 curl http://localhost:8000/api/agents/health
 ```
 
+**Test Location**: `/tests/` - Contains agent and integration tests
+
 ### Code Style
-- **Python**: Follow PEP 8. Use `rich` for terminal output.
-- **React**: Functional components with hooks.
+- **Python**: Follow PEP 8. Use `rich` for terminal output (not print statements).
+- **React**: Functional components with hooks. No class components.
+- **File Naming**: Agent files use `terminator_<agent_name>.py` pattern in `/core/`.
 
 ### Universal CLI Diagnostics
 ```bash
@@ -450,18 +531,42 @@ All errors logged to `/core/terminator_safe_logging.py` with sensitive data filt
 - Resource Manager Agent (`/core/terminator_resource_manager_agent.py`) monitors usage
 - Automatic cleanup of closed WebSocket connections
 
-## Related Documentation
+## Project Context & Related Documentation
 
-Within this project:
-- `README.md` - User-facing guide
+**This Repository:** `/Users/reeazmahmud/Desktop/Terminator-Project`
+- Focused working copy for active development
+- Clean codebase without extensive history
+- All core functionality and agents included
+
+**Full System:** `/Users/reeazmahmud/Desktop/Terminator/` (57GB)
+- Complete historical data and communication logs
+- Full agent memory and state persistence
+- Reference for deep architectural context
+
+### Documentation Within This Project
+
+**Getting Started:**
+- `README.md` - User-facing guide with feature overview
 - `START_HERE.md` - Quick start for new users
-- `VISUAL_FRAMEWORK.md` - Complete system diagrams
+- `QUICK_START_CLI.txt` - Universal CLI quick reference
+- `.cursorrules` - Development guidelines and context
+
+**Architecture & Design:**
+- `VISUAL_FRAMEWORK.md` - Complete system diagrams and flows
+- `AGENT_ARCHITECTURE.md` - Agent design patterns
+- `CLAUDE.md` (this file) - Claude Code guidance
+
+**System Status & Planning:**
 - `AGENT_HEALTH_REPORT.md` - Agent status and metrics
 - `TERMINATOR_MASTER_PLAN.md` - Future development roadmap
+- `SYSTEM_IMPLEMENTATION_SUMMARY.md` - What's been built
 
-Full system documentation (57GB complete system):
-- `/Users/reeazmahmud/Desktop/Terminator/README_PROJECT_START_HERE.md`
-- `/Users/reeazmahmud/Desktop/Terminator/PROJECT_MASTER_SUMMARY.md`
+**Troubleshooting & Fixes:**
+- `docs/troubleshooting/LLM_NOT_RESPONDING.md` - LLM integration issues
+- `docs/fixes/FIX_001_*.md` - Documented bug fixes with lessons learned
+- `core/agent_knowledge/llm_integration_patterns.py` - Learnable patterns
+
+**Note:** If unclear about system architecture, check `VISUAL_FRAMEWORK.md` for diagrams or `.cursorrules` for quick context.
 
 ## Universal Platform Control
 
@@ -549,6 +654,22 @@ If any component shows "Processing..." but returns no response:
 | Port 8000 already in use | Previous instance running | `lsof -ti:8000 \| xargs kill` |
 | React build not found | Not compiled | `cd terminator-web-terminal && npm install && npm run build` |
 | WebSocket connection failed | Backend not running | Start with `./start_web_terminal.sh` |
+| Import errors | Wrong Python version | Verify `python3 --version` >= 3.13 |
+| Module not found | Dependencies not installed | `pip3 install -r requirements.txt` |
+
+### Virtual Environments
+
+The project has multiple virtual environments:
+- `/venv/` - Python 3.14 environment (newer features)
+- `/BanglaApp/venv/` - Separate environment for Bengali translation app
+
+**Activation (if needed):**
+```bash
+source venv/bin/activate    # Activate main venv
+deactivate                  # Deactivate when done
+```
+
+**Note:** Scripts typically use system Python 3. Only activate venv if encountering dependency issues.
 
 ## Agent Knowledge Base
 
