@@ -551,8 +551,16 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
 
         # Command registry (Claude + TERMINATOR commands)
         self.commands = {
-            # Claude CLI Commands
+            # Help & Categories
             "/help": self.cmd_help,
+            "/core": self.cmd_core,
+            "/session": self.cmd_session,
+            "/platforms": self.cmd_platforms,
+            "/agentic": self.cmd_agentic,
+            "/agentic-tools": self.cmd_agentic_tools,
+            "/system": self.cmd_system,
+
+            # Session Commands
             "/settings": self.cmd_settings,
             "/clear": self.cmd_clear,
             "/exit": self.cmd_exit,
@@ -568,10 +576,14 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
             "/load": self.cmd_load,
             "/export": self.cmd_export,
 
-            # TERMINATOR Platform Commands
+            # Core Commands
+            "/status": self.cmd_status,
             "/healthCheck": self.cmd_health_check,
-            "/systemIndex": self.cmd_system_index,
-            "/viewAnalysis": self.cmd_view_analysis,
+            "/agents": self.cmd_list_agents,
+            "/tools": self.cmd_list_tools,
+            "/modules": self.cmd_list_modules,
+
+            # Platform Commands
             "/connectMCP": self.cmd_connect_mcp,
             "/connectiOS": self.cmd_connect_ios,
             "/connectAndroid": self.cmd_connect_android,
@@ -581,10 +593,10 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
             "/run": self.cmd_run_on_platform,
             "/broadcast": self.cmd_broadcast,
             "/sync": self.cmd_sync_all,
-            "/status": self.cmd_status,
-            "/agents": self.cmd_list_agents,
-            "/tools": self.cmd_list_tools,
-            "/modules": self.cmd_list_modules,
+
+            # System Commands
+            "/systemIndex": self.cmd_system_index,
+            "/viewAnalysis": self.cmd_view_analysis,
             "/logs": self.cmd_view_logs,
 
             # Agentic Tools Commands (Claude Code-like)
@@ -858,82 +870,137 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
     # ==================== SLASH COMMANDS ====================
 
     def cmd_help(self, args: List[str] = None):
-        """Show all available commands"""
+        """Show command categories"""
         console.print("\n[bold cyan]⚡ TERMINATOR Command Reference[/bold cyan]\n")
 
-        # All commands in one unified table
-        cmd_table = Table(title="⚡ TERMINATOR Commands", style="cyan", show_lines=True)
-        cmd_table.add_column("Command", style="yellow", width=22)
-        cmd_table.add_column("Description", width=45)
+        # Category overview table
+        cat_table = Table(title="📚 Command Categories", style="cyan", show_lines=True)
+        cat_table.add_column("Category", style="yellow bold", width=20)
+        cat_table.add_column("Description", width=50)
 
-        # Core commands
-        cmd_table.add_row("[bold]── Core ──[/bold]", "")
-        cmd_table.add_row("/help", "Show this help message")
-        cmd_table.add_row("/status", "Show system status")
-        cmd_table.add_row("/healthCheck", "Run full diagnostics")
-        cmd_table.add_row("/agents", "List all agents")
-        cmd_table.add_row("/tools", "List available tools")
-        cmd_table.add_row("/modules", "List core system modules")
-        cmd_table.add_row("/clear", "Clear terminal screen")
-        cmd_table.add_row("/exit", "Exit TERMINATOR")
+        cat_table.add_row("/core", "Essential commands (status, health, agents, tools)")
+        cat_table.add_row("/session", "Session management (model, history, save/load)")
+        cat_table.add_row("/platforms", "Multi-platform control (iOS, Android, macOS, Web, MCP)")
+        cat_table.add_row("/agentic", "Agentic tools (file ops, shell, autonomous tasks)")
+        cat_table.add_row("/system", "System utilities (logs, analysis, diagnostics)")
 
-        # Session commands
-        cmd_table.add_row("[bold]── Session ──[/bold]", "")
-        cmd_table.add_row("/model", "List Ollama models & switch (/model 3)")
-        cmd_table.add_row("/context", "Show context usage")
-        cmd_table.add_row("/tokens", "Show token statistics")
-        cmd_table.add_row("/reset", "Reset conversation")
-        cmd_table.add_row("/history", "View conversation history")
-        cmd_table.add_row("/save", "Save conversation")
-        cmd_table.add_row("/load", "Load conversation")
-        cmd_table.add_row("/export", "Export to file")
-        cmd_table.add_row("/settings", "View/edit settings")
-
-        # Platform commands
-        cmd_table.add_row("[bold]── Platforms ──[/bold]", "")
-        cmd_table.add_row("/connections", "Show active connections")
-        cmd_table.add_row("/connectiOS", "Connect to iOS device")
-        cmd_table.add_row("/connectAndroid", "Connect to Android device")
-        cmd_table.add_row("/connectMacOS", "Connect to macOS app")
-        cmd_table.add_row("/connectWeb", "Connect to web interface")
-        cmd_table.add_row("/connectMCP", "Connect to MCP servers")
-        cmd_table.add_row("/run", "Run command on platform")
-        cmd_table.add_row("/broadcast", "Send to all platforms")
-        cmd_table.add_row("/sync", "Sync all platforms")
-
-        # Agentic commands (Claude Code-like)
-        cmd_table.add_row("[bold]── Agentic Tools ──[/bold]", "")
-        cmd_table.add_row("/project <path>", "Set/show current project")
-        cmd_table.add_row("/read <file>", "Read file contents")
-        cmd_table.add_row("/write <file> <content>", "Write content to file")
-        cmd_table.add_row("/edit <file>", "Edit file (interactive)")
-        cmd_table.add_row("/bash <command>", "Execute shell command")
-        cmd_table.add_row("/ls [path]", "List directory contents")
-        cmd_table.add_row("/find <pattern>", "Find files (glob pattern)")
-        cmd_table.add_row("/grep <pattern> [file]", "Search for text in files")
-        cmd_table.add_row("/agent", "Toggle agentic mode")
-        cmd_table.add_row("/auto <task>", "Run autonomous task")
-
-        # System commands
-        cmd_table.add_row("[bold]── System ──[/bold]", "")
-        cmd_table.add_row("/logs", "View system logs")
-        cmd_table.add_row("/systemIndex", "View master system index")
-        cmd_table.add_row("/viewAnalysis", "Show analysis log")
-
-        console.print(cmd_table)
+        console.print(cat_table)
+        console.print()
+        console.print("[dim]💡 Type a category command (e.g., /core) to see detailed commands[/dim]")
+        console.print("[dim]💡 Or use natural language: 'hello, what can you do?'[/dim]")
         console.print()
 
-        # Examples
+    def cmd_core(self, args: List[str] = None):
+        """Show core commands"""
+        console.print("\n[bold cyan]⚡ Core Commands[/bold cyan]\n")
+
+        table = Table(style="cyan", show_lines=True)
+        table.add_column("Command", style="yellow", width=22)
+        table.add_column("Description", width=45)
+
+        table.add_row("/help", "Show command categories")
+        table.add_row("/status", "Show system status")
+        table.add_row("/healthCheck", "Run full diagnostics")
+        table.add_row("/agents", "List all agents")
+        table.add_row("/tools", "List available tools")
+        table.add_row("/modules", "List core system modules")
+        table.add_row("/clear", "Clear terminal screen")
+        table.add_row("/exit", "Exit TERMINATOR")
+
+        console.print(table)
+        console.print()
+
+    def cmd_session(self, args: List[str] = None):
+        """Show session management commands"""
+        console.print("\n[bold cyan]⚡ Session Management[/bold cyan]\n")
+
+        table = Table(style="cyan", show_lines=True)
+        table.add_column("Command", style="yellow", width=22)
+        table.add_column("Description", width=45)
+
+        table.add_row("/model", "List Ollama models & switch (/model 3)")
+        table.add_row("/context", "Show context usage")
+        table.add_row("/tokens", "Show token statistics")
+        table.add_row("/reset", "Reset conversation")
+        table.add_row("/history", "View conversation history")
+        table.add_row("/save", "Save conversation")
+        table.add_row("/load", "Load conversation")
+        table.add_row("/export", "Export to file")
+        table.add_row("/settings", "View/edit settings")
+
+        console.print(table)
+        console.print()
+
+    def cmd_platforms(self, args: List[str] = None):
+        """Show platform control commands"""
+        console.print("\n[bold cyan]⚡ Multi-Platform Control[/bold cyan]\n")
+
+        table = Table(style="cyan", show_lines=True)
+        table.add_column("Command", style="yellow", width=22)
+        table.add_column("Description", width=45)
+
+        table.add_row("/connections", "Show active connections")
+        table.add_row("/connectiOS", "Connect to iOS device")
+        table.add_row("/connectAndroid", "Connect to Android device")
+        table.add_row("/connectMacOS", "Connect to macOS app")
+        table.add_row("/connectWeb", "Connect to web interface")
+        table.add_row("/connectMCP", "Connect to MCP servers")
+        table.add_row("/run <platform> <cmd>", "Run command on platform")
+        table.add_row("/broadcast <message>", "Send to all platforms")
+        table.add_row("/sync", "Sync all platforms")
+
+        console.print(table)
+        console.print()
         console.print("[yellow]Examples:[/yellow]")
-        console.print("  /status                          # Check system health")
-        console.print("  /agents                          # List all agents")
-        console.print("  /run ios get clipboard           # Get iOS clipboard")
+        console.print("  /run ios get clipboard           # Get iPhone clipboard")
+        console.print("  /run android take screenshot     # Android screenshot")
+        console.print("  /broadcast show status           # Broadcast to all")
+        console.print()
+
+    def cmd_agentic(self, args: List[str] = None):
+        """Show agentic tools (alias for cmd_agentic_tools)"""
+        self.cmd_agentic_tools(args)
+
+    def cmd_agentic_tools(self, args: List[str] = None):
+        """Show agentic tools commands"""
+        console.print("\n[bold cyan]⚡ Agentic Tools (Claude Code-style)[/bold cyan]\n")
+
+        table = Table(style="cyan", show_lines=True)
+        table.add_column("Command", style="yellow", width=22)
+        table.add_column("Description", width=45)
+
+        table.add_row("/project <path>", "Set/show current project")
+        table.add_row("/read <file>", "Read file contents")
+        table.add_row("/write <file> <content>", "Write content to file")
+        table.add_row("/edit <file>", "Edit file (interactive)")
+        table.add_row("/bash <command>", "Execute shell command")
+        table.add_row("/ls [path]", "List directory contents")
+        table.add_row("/find <pattern>", "Find files (glob pattern)")
+        table.add_row("/grep <pattern> [file]", "Search for text in files")
+        table.add_row("/agent", "Toggle agentic mode")
+        table.add_row("/auto <task>", "Run autonomous task")
+
+        console.print(table)
+        console.print()
+        console.print("[yellow]Examples:[/yellow]")
         console.print("  /auto create hello.py            # Autonomous: create a file")
         console.print("  /read main.py                    # Read a file")
         console.print("  /bash git status                 # Run shell command")
-        console.print("  hello, what can you do?          # Natural language")
         console.print()
-        console.print("[dim]Type natural language or use / commands[/dim]")
+
+    def cmd_system(self, args: List[str] = None):
+        """Show system utility commands"""
+        console.print("\n[bold cyan]⚡ System Utilities[/bold cyan]\n")
+
+        table = Table(style="cyan", show_lines=True)
+        table.add_column("Command", style="yellow", width=22)
+        table.add_column("Description", width=45)
+
+        table.add_row("/logs", "View system logs")
+        table.add_row("/systemIndex", "View master system index")
+        table.add_row("/viewAnalysis", "Show analysis log")
+
+        console.print(table)
         console.print()
 
     def cmd_health_check(self, args: List[str] = None):
@@ -1966,11 +2033,15 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
 
         console.print()
 
-    def display_input_box(self):
-        """Display input box with visual separators"""
-        # Add top separator
+    def display_fixed_input_box_top(self):
+        """Display top part of fixed input box"""
         console.print()
-        console.rule(style="dim cyan")
+        console.print("[dim cyan]" + "─" * 80 + "[/dim cyan]")
+
+    def display_fixed_input_box_bottom(self):
+        """Display bottom part of fixed input box with submit indicator"""
+        console.print("[dim cyan]" + "─" * 80 + "[/dim cyan]")
+        console.print("[dim]  💡 Press [Enter ↵] to submit  •  [Ctrl+C] to exit[/dim]")
         console.print()
 
     def run(self):
@@ -1984,16 +2055,19 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
 
         while self.running:
             try:
-                # Display input box with status
-                self.display_input_box()
+                # Display the complete fixed input box frame
+                self.display_fixed_input_box_top()
 
                 # Get user input with yellow theme (TERMINATOR color scheme)
                 user_input = Prompt.ask("[bold yellow]>[/bold yellow]")
 
-                # Add bottom separator and process command (no echo)
+                # Display the bottom of the input box frame
+                self.display_fixed_input_box_bottom()
+
+                # Process command
                 if user_input.strip():
-                    console.rule(style="dim cyan")
                     self.process_command(user_input)
+                    console.print()
 
                     # Increment request counter
                     self.requests_today += 1
