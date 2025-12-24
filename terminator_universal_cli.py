@@ -1961,9 +1961,10 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
         console.print()
 
     def display_input_box(self):
-        """Add spacing before prompt"""
-        # Add blank lines to push prompt up from bottom
+        """Display input box with visual separators"""
+        # Add top separator
         console.print()
+        console.rule(style="dim cyan")
         console.print()
 
     def run(self):
@@ -1983,7 +1984,9 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
                 # Get user input (Claude Code-style prompt)
                 user_input = Prompt.ask("[bold cyan]>[/bold cyan]")
 
+                # Add bottom separator after input
                 if user_input.strip():
+                    console.rule(style="dim cyan")
                     self.process_command(user_input)
 
                     # Increment request counter
