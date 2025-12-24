@@ -680,9 +680,7 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
                         console.print(f"[red]Error: Ollama returned status {response.status_code}[/red]")
                         return
 
-                    # Stream response like Claude Code
-                    console.print("[bold red]TERMINATOR[/bold red]", end=" ")
-
+                    # Stream response (collect all chunks first)
                     for line in response.iter_lines():
                         if line:
                             try:
@@ -691,8 +689,6 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
                                 chunk = data.get("message", {}).get("content", "")
                                 if chunk:
                                     full_response += chunk
-                                    # Print chunk immediately (streaming effect)
-                                    console.print(chunk, end="", highlight=False)
 
                                 # Check if done
                                 if data.get("done", False):
@@ -700,7 +696,9 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
                             except:
                                 continue
 
-                    console.print()  # New line after response
+                    # Display full response in TERMINATOR theme panel
+                    if full_response:
+                        self.display_response(full_response, truncate=False)
 
             # Add to history
             if full_response:
