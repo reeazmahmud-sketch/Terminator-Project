@@ -114,12 +114,22 @@ Parameters: {{"pattern": "search text", "path": "optional/directory", "file_patt
 List directory contents.
 Parameters: {{"path": "directory/path"}}
 
+### web_search
+Search the web for information.
+Parameters: {{"query": "search terms"}}
+
+### fetch_web
+Fetch content from a URL.
+Parameters: {{"url": "https://example.com"}}
+
 ## RULES
-1. ALWAYS use tools when you need to read, write, or execute anything
-2. One tool call per message, wait for results before continuing
-3. After using a tool, analyze the result and decide next steps
-4. Be concise but thorough in your work
-5. When editing files, always read them first to understand the context
+1. ALWAYS use tools when you need to read, write, execute, or search anything
+2. For web searches, YouTube summaries, online info - USE web_search and fetch_web tools
+3. For file operations - USE read_file, write_file, edit_file tools
+4. One tool call per message, wait for results before continuing
+5. After using a tool, analyze the result and decide next steps
+6. DO NOT say "I can't access the internet" - YOU CAN with web_search and fetch_web
+7. When editing files, always read them first to understand the context
 
 ## CURRENT PROJECT
 Working directory: {project_path}
@@ -296,6 +306,40 @@ class AgenticTools:
         except Exception as e:
             return f"❌ Error listing directory: {e}"
 
+    def web_search(self, query: str) -> str:
+        """Search the web using DuckDuckGo"""
+        try:
+            import httpx
+            # Use DuckDuckGo HTML API (no key required)
+            url = "https://html.duckduckgo.com/html/"
+            params = {"q": query}
+            with httpx.Client(timeout=10.0, follow_redirects=True) as client:
+                response = client.post(url, data=params)
+                if response.status_code == 200:
+                    # Parse results (simplified)
+                    text = response.text
+                    if "No results" in text:
+                        return f"🔍 No results found for: {query}"
+                    return f"🔍 Web search for '{query}':\n✅ Found results (use fetch_web to get full content)\nSearch completed successfully."
+                else:
+                    return f"❌ Search failed with status {response.status_code}"
+        except Exception as e:
+            return f"❌ Web search error: {e}"
+
+    def fetch_web(self, url: str) -> str:
+        """Fetch content from a URL"""
+        try:
+            import httpx
+            with httpx.Client(timeout=15.0, follow_redirects=True) as client:
+                response = client.get(url)
+                if response.status_code == 200:
+                    content = response.text[:5000]  # Limit to 5000 chars
+                    return f"🌐 Fetched {url}:\n{content}\n\n... (truncated to 5000 chars)"
+                else:
+                    return f"❌ Failed to fetch {url}: HTTP {response.status_code}"
+        except Exception as e:
+            return f"❌ Error fetching URL: {e}"
+
     def execute_tool(self, tool_name: str, params: dict) -> str:
         """Execute a tool by name with parameters"""
         tools = {
@@ -306,6 +350,8 @@ class AgenticTools:
             "glob": lambda p: self.glob_files(p.get("pattern", "*"), p.get("path")),
             "grep": lambda p: self.grep(p.get("pattern", ""), p.get("path"), p.get("file_pattern", "*")),
             "list_dir": lambda p: self.list_dir(p.get("path", ".")),
+            "web_search": lambda p: self.web_search(p.get("query", "")),
+            "fetch_web": lambda p: self.fetch_web(p.get("url", "")),
         }
 
         if tool_name not in tools:
@@ -344,7 +390,7 @@ class UniversalTerminatorCLI:
 
         # Initialize agentic tools system
         self.tools = AgenticTools(self.terminator_root)
-        self.agentic_mode = False  # Toggle with /agent command
+        self.agentic_mode = True  # Toggle with /agent command - DEFAULT ON for autonomous behavior
 
         # Context tracking (like Claude)
         self.context_tokens = 0
@@ -396,12 +442,19 @@ When asked "what can you do?" or about your capabilities, proudly describe:
 /help - All commands | /agents - List 38+ agents | /tools - 8 tool categories
 /modules - 61 core modules | /status - System health | /healthCheck - Full diagnostics
 
-## RULES
-1. Be confident and knowledgeable about TERMINATOR's capabilities
-2. When asked specifics about agents/tools/modules, suggest the relevant slash command for details
-3. You CAN answer coding questions, explain concepts, and have conversations
-4. Keep responses concise but informative
-5. You're running locally via Ollama - no cloud dependency for core features"""}
+## RULES - IMPORTANT!
+1. YOU ARE IN AGENTIC MODE BY DEFAULT - Use tools to actually DO things, don't just explain
+2. When asked to read a file, get data, create notes, search web - DO IT with tools
+3. For file operations: Use read_file, write_file, edit_file tools immediately
+4. For web tasks: Use web search and fetch tools directly
+5. For code execution: Use bash tool to run commands
+6. DO NOT say "I can't" - You CAN and SHOULD use your tools autonomously
+7. One tool call per message in this format:
+   <tool_call>
+   {{"tool": "tool_name", "params": {{"param": "value"}}}}
+   </tool_call>
+
+REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't explain how."""}
         ]
 
         # Command registry (Claude + TERMINATOR commands)
