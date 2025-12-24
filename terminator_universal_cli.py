@@ -810,10 +810,68 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
             console.print(f"[red]Error: {e}[/red]")
 
     def display_banner(self):
-        """Display Claude Code-style minimal banner"""
-        console.print()
-        console.print("[bold red]TERMINATOR[/bold red] [dim]- Local AI Agent System[/dim]")
-        console.print(f"[dim]Model: {OLLAMA_MODEL} • /help for commands • Ctrl+C to exit[/dim]")
+        """Display rich Claude Code-inspired landing page"""
+        console.clear()
+
+        # ASCII Art TERMINATOR Logo
+        logo = """[bold red]
+╔════════════════════════════════════════════════════════════════╗
+║                                                                ║
+║  ████████╗███████╗██████╗ ███╗   ███╗██╗███╗   ██╗ █████╗    ║
+║  ╚══██╔══╝██╔════╝██╔══██╗████╗ ████║██║████╗  ██║██╔══██╗   ║
+║     ██║   █████╗  ██████╔╝██╔████╔██║██║██╔██╗ ██║███████║   ║
+║     ██║   ██╔══╝  ██╔══██╗██║╚██╔╝██║██║██║╚██╗██║██╔══██║   ║
+║     ██║   ███████╗██║  ██║██║ ╚═╝ ██║██║██║ ╚████║██║  ██║   ║
+║     ╚═╝   ╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝   ║
+║                                                                ║
+║             [bold cyan]Autonomous AI Agent • Universal Control[/bold cyan]             ║
+╚════════════════════════════════════════════════════════════════╝[/bold red]
+"""
+        console.print(logo)
+
+        # System Status Panel
+        status_table = Table(show_header=False, box=None, padding=(0, 2))
+        status_table.add_column(style="bold cyan", justify="right")
+        status_table.add_column(style="white")
+
+        # LLM Backend
+        llm_status = f"[green]●[/green] {OLLAMA_MODEL}"
+        status_table.add_row("LLM Model:", llm_status)
+
+        # Capabilities
+        capabilities = "[green]✓[/green] Autonomous | [green]✓[/green] Meta-Cognition | [green]✓[/green] Learning"
+        status_table.add_row("Capabilities:", capabilities)
+
+        # Tools Available
+        tool_count = "11+ tools (File, Shell, Web, iOS, Android, GitHub, MCP)"
+        status_table.add_row("Tools:", f"[cyan]{tool_count}[/cyan]")
+
+        # Agents
+        agent_status = "38+ specialized agents ready"
+        status_table.add_row("Agents:", f"[cyan]{agent_status}[/cyan]")
+
+        # Platform Control
+        platforms = "Terminal | iOS | Android | macOS | Web | MCP"
+        status_table.add_row("Platforms:", f"[dim]{platforms}[/dim]")
+
+        console.print(Panel(status_table, title="[bold cyan]System Status[/bold cyan]", border_style="cyan", padding=(1, 2)))
+
+        # Quick Start Help
+        help_text = """[bold]Quick Start:[/bold]
+  • Type naturally to chat with TERMINATOR
+  • Use [cyan]/help[/cyan] to see all slash commands
+  • TERMINATOR learns when it doesn't know something
+  • Press [yellow]Ctrl+C[/yellow] to exit
+
+[bold]Popular Commands:[/bold]
+  [cyan]/agents[/cyan]      - List all 38+ specialized agents
+  [cyan]/tools[/cyan]       - Show available tool integrations
+  [cyan]/healthCheck[/cyan] - Run complete system diagnostics
+  [cyan]/connectiOS[/cyan]  - Control your iPhone from terminal
+  [cyan]/model[/cyan]       - Switch between Ollama models
+"""
+        console.print(Panel(help_text, title="[bold green]Welcome to TERMINATOR[/bold green]", border_style="green", padding=(1, 2)))
+
         console.print()
 
     # ==================== SLASH COMMANDS ====================
@@ -1669,8 +1727,8 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
                     assistant_message = response.json().get("message", {}).get("content", "")
                     self.messages.append({"role": "assistant", "content": assistant_message})
 
-                    # Display response
-                    console.print(f"[bold cyan]TERMINATOR:[/bold cyan] {assistant_message[:500]}{'...' if len(assistant_message) > 500 else ''}")
+                    # Display response with rich formatting
+                    self.display_response(assistant_message, truncate=False)
 
                     # Check for tool calls - flexible extraction
                     # Helper function to extract balanced JSON
@@ -1894,9 +1952,36 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
             else:
                 # Fallback to non-streaming
                 response = self.call_llm(user_input)
-                console.print(f"[bold red]TERMINATOR[/bold red] {response}")
+                self.display_response(response)
 
             console.print()
+
+    def display_response(self, message: str, truncate: bool = True):
+        """Display TERMINATOR response with Claude Code-style formatting"""
+        # Add separator
+        console.print()
+        console.rule("[dim]Response[/dim]", style="dim cyan")
+        console.print()
+
+        # Truncate if needed
+        display_text = message
+        if truncate and len(message) > 2000:
+            display_text = message[:2000] + "\n\n[dim]... (response truncated)[/dim]"
+
+        # Check if response contains code blocks
+        if "```" in display_text:
+            # Use markdown rendering for code
+            try:
+                md = Markdown(display_text)
+                console.print(md)
+            except:
+                # Fallback to simple print
+                console.print(display_text)
+        else:
+            # Simple text response with nice formatting
+            console.print(f"[white]{display_text}[/white]")
+
+        console.print()
 
     def display_input_box(self):
         """Add spacing before prompt"""
