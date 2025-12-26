@@ -1,0 +1,111 @@
+╔══════════════════════════════════════════════════════════════════╗
+║                                                                  ║
+║              HOW TO START TERMINATOR IN 3 STEPS                  ║
+║                                                                  ║
+╚══════════════════════════════════════════════════════════════════╝
+
+
+┌──────────────────────────────────────────────────────────────────┐
+│  STEP 1: OPEN TERMINAL                                           │
+└──────────────────────────────────────────────────────────────────┘
+
+  Press:  Cmd + Space
+  Type:   Terminal
+  Press:  Enter
+
+  ✅ Terminal window opens
+
+
+┌──────────────────────────────────────────────────────────────────┐
+│  STEP 2: COPY & PASTE THIS                                       │
+└──────────────────────────────────────────────────────────────────┘
+
+  cd /Users/reeazmahmud/Desktop/Terminator-Project && ./start_all.sh
+
+  (Select all text above, Cmd+C to copy, Cmd+V to paste in Terminal)
+
+  Press:  Enter
+
+  ✅ Menu appears
+
+
+┌──────────────────────────────────────────────────────────────────┐
+│  STEP 3: CHOOSE OPTION                                           │
+└──────────────────────────────────────────────────────────────────┘
+
+  You'll see:
+
+    Select interface to launch:
+      [1] Web Terminal (React UI with Voice)
+      [2] Terminal UI (CLI with Animations)
+      [3] Simple CLI (Minimal)
+      [4] All Interfaces (Background)
+
+    Choice [1-4]:
+
+  Type:   1
+  Press:  Enter
+
+  ✅ Browser opens to http://localhost:8000
+
+
+┌──────────────────────────────────────────────────────────────────┐
+│  THAT'S IT! YOU'RE RUNNING TERMINATOR! 🎉                        │
+└──────────────────────────────────────────────────────────────────┘
+
+  Start chatting with your AI agent!
+
+
+═══════════════════════════════════════════════════════════════════
+
+
+┌──────────────────────────────────────────────────────────────────┐
+│  TO STOP TERMINATOR                                              │
+└──────────────────────────────────────────────────────────────────┘
+
+  Go to Terminal window
+  Press:  Ctrl + C
+
+
+═══════════════════════════════════════════════════════════════════
+
+
+┌──────────────────────────────────────────────────────────────────┐
+│  FIRST TIME ONLY - INSTALL DEPENDENCIES                          │
+└──────────────────────────────────────────────────────────────────┘
+
+  If you get "module not found" error, run this ONCE:
+
+  cd /Users/reeazmahmud/Desktop/Terminator-Project
+  pip3 install -r requirements.txt
+
+  Then try starting again!
+
+
+═══════════════════════════════════════════════════════════════════
+
+
+┌──────────────────────────────────────────────────────────────────┐
+│  TROUBLESHOOTING                                                 │
+└──────────────────────────────────────────────────────────────────┘
+
+  Problem: "Permission denied"
+  Fix:     chmod +x start_*.sh
+
+  Problem: "Port 8000 already in use"
+  Fix:     lsof -ti:8000 | xargs kill
+
+  Problem: Nothing happens
+  Fix:     Check you're in the right folder:
+           pwd
+           (Should show: /Users/reeazmahmud/Desktop/Terminator-Project)
+
+
+═══════════════════════════════════════════════════════════════════
+
+
+THE ONE COMMAND TO REMEMBER:
+
+  cd /Users/reeazmahmud/Desktop/Terminator-Project && ./start_all.sh
+
+Save this somewhere, paste it anytime you want to start TERMINATOR!

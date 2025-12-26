@@ -1,0 +1,37 @@
+# Terminator Universal Framework
+# Architect: Reeaz Mahmud | AI Partner: Gemini
+# Date: December 17, 2025
+
+# Terminator Unified Memory Configuration
+# =======================================
+
+storage:
+  backend: "json_vector_lite" # Lightweight local vector store implementation
+  base_path: "./memory_store"
+  vector_dim: 384 # Matches standard small embeddings (e.g. all-MiniLM-L6-v2)
+
+hierarchy:
+  scopes:
+    - "agent"   # Private to the specific agent instance
+    - "team"    # Shared among agents with the same role (e.g. "coder", "researcher")
+    - "global"  # Read-only for most, writable by Orchestrator/Admin
+
+retention:
+  short_term_limit: 50 # Number of recent messages in RAM
+  long_term_ttl_days: 90
+  summarization_threshold: 20 # Summarize after 20 new items
+
+teams:
+  # Map agents to teams
+  QAAgent: "qa_team"
+  SentinelAgent: "ops_team"
+  MultiAgentOrchestrator: "management_team"
+  KernelAI: "kernel_team"
+  WasmAgent: "dev_team"
+
+governance:
+  # Who can write to Global memory?
+  global_writers: ["MultiAgentOrchestrator", "SentinelAgent"]
+  
+  # Can agents read other teams' memory?
+  cross_team_read: false

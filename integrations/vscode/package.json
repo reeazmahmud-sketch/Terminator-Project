@@ -1,0 +1,94 @@
+{
+  "name": "terminator-ai",
+  "displayName": "TERMINATOR AI",
+  "description": "Integrate TERMINATOR AI agent system into VS Code",
+  "version": "1.0.0",
+  "publisher": "terminator",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": ["Other", "Machine Learning"],
+  "activationEvents": [
+    "onCommand:terminator.launch",
+    "onCommand:terminator.askSelected",
+    "onCommand:terminator.askInput",
+    "onCommand:terminator.explainCode",
+    "onCommand:terminator.reviewCode",
+    "onCommand:terminator.agents",
+    "onCommand:terminator.health"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "terminator.launch",
+        "title": "TERMINATOR: Launch Terminal"
+      },
+      {
+        "command": "terminator.askSelected",
+        "title": "TERMINATOR: Ask About Selection"
+      },
+      {
+        "command": "terminator.askInput",
+        "title": "TERMINATOR: Ask Question"
+      },
+      {
+        "command": "terminator.explainCode",
+        "title": "TERMINATOR: Explain This Code"
+      },
+      {
+        "command": "terminator.reviewCode",
+        "title": "TERMINATOR: Review This Code"
+      },
+      {
+        "command": "terminator.agents",
+        "title": "TERMINATOR: List Agents"
+      },
+      {
+        "command": "terminator.health",
+        "title": "TERMINATOR: Health Check"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "terminator.askSelected",
+          "when": "editorHasSelection",
+          "group": "terminator@1"
+        },
+        {
+          "command": "terminator.explainCode",
+          "when": "editorHasSelection",
+          "group": "terminator@2"
+        },
+        {
+          "command": "terminator.reviewCode",
+          "when": "editorHasSelection",
+          "group": "terminator@3"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "terminator.launch",
+        "key": "ctrl+shift+t",
+        "mac": "cmd+shift+t"
+      },
+      {
+        "command": "terminator.askInput",
+        "key": "ctrl+shift+a",
+        "mac": "cmd+shift+a"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^18.0.0",
+    "@types/vscode": "^1.74.0",
+    "typescript": "^5.0.0"
+  }
+}

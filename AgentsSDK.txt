@@ -1,0 +1,235 @@
+Agents Buldiers
+
+import { z } from "zod";
+import { Agent, AgentInputItem, Runner, withTrace } from "@openai/agents";
+
+const WebResearchAgentSchema = z.object({ companies: z.array(z.object({ company_name: z.string(), industry: z.string(), headquarters_location: z.string(), company_size: z.string(), website: z.string(), description: z.string(), founded_year: z.number() })) });
+const SummarizeAndDisplaySchema = z.object({ company_name: z.string(), industry: z.string(), headquarters_location: z.string(), company_size: z.string(), website: z.string(), description: z.string(), founded_year: z.number() });
+const webResearchAgent = new Agent({
+  name: "Web research agent",
+  instructions: "You are a helpful assistant. Use web search to find information about the following company I can use in marketing asset based on the underlying topic.",
+  model: "gpt-5-mini",
+  outputType: WebResearchAgentSchema,
+  modelSettings: {
+    reasoning: {
+      effort: "low"
+    },
+    store: true
+  }
+});
+
+const summarizeAndDisplay = new Agent({
+  name: "Summarize and display",
+  instructions: `Put the research together in a nice display using the output format described.
+`,
+  model: "gpt-5",
+  outputType: SummarizeAndDisplaySchema,
+  modelSettings: {
+    reasoning: {
+      effort: "minimal"
+    },
+    store: true
+  }
+});
+
+type WorkflowInput = { input_as_text: string };
+
+
+// Main code entrypoint
+export const runWorkflow = async (workflow: WorkflowInput) => {
+  return await withTrace("Agent builder workflow", async () => {
+    const state = {
+
+    };
+    const conversationHistory: AgentInputItem[] = [
+      { role: "user", content: [{ type: "input_text", text: workflow.input_as_text }] }
+    ];
+    const runner = new Runner({
+      traceMetadata: {
+        __trace_source__: "agent-builder"
+      }
+    });
+    const webResearchAgentResultTemp = await runner.run(
+      webResearchAgent,
+      [
+        ...conversationHistory
+      ]
+    );
+    conversationHistory.push(...webResearchAgentResultTemp.newItems.map((item) => item.rawItem));
+
+    if (!webResearchAgentResultTemp.finalOutput) {
+        throw new Error("Agent result is undefined");
+    }
+
+    const webResearchAgentResult = {
+      output_text: JSON.stringify(webResearchAgentResultTemp.finalOutput),
+      output_parsed: webResearchAgentResultTemp.finalOutput
+    };
+    const summarizeAndDisplayResultTemp = await runner.run(
+      summarizeAndDisplay,
+      [
+        ...conversationHistory
+      ]
+    );
+
+    if (!summarizeAndDisplayResultTemp.finalOutput) {
+        throw new Error("Agent result is undefined");
+    }
+
+    const summarizeAndDisplayResult = {
+      output_text: JSON.stringify(summarizeAndDisplayResultTemp.finalOutput),
+      output_parsed: summarizeAndDisplayResultTemp.finalOutput
+    };
+  });
+}
+
+######################################
+
+import { webSearchTool, Agent, AgentInputItem, Runner, withTrace } from "@openai/agents";
+import { z } from "zod";
+
+
+// Tool definitions
+const webSearchPreview = webSearchTool({
+  searchContextSize: "medium",
+  userLocation: {
+    type: "approximate"
+  }
+})
+const TriageSchema = z.object({ has_all_details: z.boolean(), initative_goal: z.string(), target_timeframe: z.string(), current_resources: z.string() });
+const triage = new Agent({
+  name: "Triage",
+  instructions: `You are an assistant that gathers the key details needed to create a business initiative plan.
+
+Look through the conversation to extract the following:
+1. Initiative goal (what the team or organization aims to achieve)
+2. Target completion date or timeframe
+3. Available resources or current capacity (e.g., headcount, budget, or tool access)
+
+If all three details are present anywhere in the conversation, return:
+{
+  \"has_all_details\": true,
+  \"initiative_goal\": \"<user-provided goal>\",
+  \"target_timeframe\": \"<user-provided date or period>\",
+  \"current_resources\": \"<user-provided resources>\"
+}`,
+  model: "gpt-5",
+  outputType: TriageSchema,
+  modelSettings: {
+    reasoning: {
+      effort: "minimal"
+    },
+    store: true
+  }
+});
+
+const launchHelper = new Agent({
+  name: "Launch helper",
+  instructions: `Come up with a tailored plan to help the user run a new business initiative. Consider all the details they've provide and offer a succinct, bullet point list for how to run the initiative.
+
+Use the web search tool to get additional context and synthesize a succinct answer that clearly explains how to run the project, identifying unique opportunities, highlighting risks and laying out mitigations that make sense.
+`,
+  model: "gpt-4.1-mini",
+  tools: [
+    webSearchPreview
+  ],
+  modelSettings: {
+    temperature: 1,
+    topP: 1,
+    maxTokens: 2048,
+    store: true
+  }
+});
+
+const getData = new Agent({
+  name: "Get data",
+  instructions: `Collect the missing data from the user 
+
+Look through the conversation to extract the following:
+1. Initiative goal (what the team or organization aims to achieve)
+2. Target completion date or timeframe
+3. Available resources or current capacity (e.g., headcount, budget, or tool access)
+
+Make sure they are provided, be concise.`,
+  model: "gpt-5",
+  modelSettings: {
+    reasoning: {
+      effort: "minimal"
+    },
+    store: true
+  }
+});
+
+type WorkflowInput = { input_as_text: string };
+
+
+// Main code entrypoint
+export const runWorkflow = async (workflow: WorkflowInput) => {
+  return await withTrace("New workflow", async () => {
+    const state = {
+
+    };
+    const conversationHistory: AgentInputItem[] = [
+      { role: "user", content: [{ type: "input_text", text: workflow.input_as_text }] }
+    ];
+    const runner = new Runner({
+      traceMetadata: {
+        __trace_source__: "agent-builder",
+        workflow_id: "wf_6925e8bb4ea48190b4149b92ce76664e0c7422f8ef04e149"
+      }
+    });
+    const triageResultTemp = await runner.run(
+      triage,
+      [
+        ...conversationHistory
+      ]
+    );
+    conversationHistory.push(...triageResultTemp.newItems.map((item) => item.rawItem));
+
+    if (!triageResultTemp.finalOutput) {
+        throw new Error("Agent result is undefined");
+    }
+
+    const triageResult = {
+      output_text: JSON.stringify(triageResultTemp.finalOutput),
+      output_parsed: triageResultTemp.finalOutput
+    };
+    if (triageResult.output_parsed.has_all_details == true) {
+      const launchHelperResultTemp = await runner.run(
+        launchHelper,
+        [
+          ...conversationHistory
+        ]
+      );
+      conversationHistory.push(...launchHelperResultTemp.newItems.map((item) => item.rawItem));
+
+      if (!launchHelperResultTemp.finalOutput) {
+          throw new Error("Agent result is undefined");
+      }
+
+      const launchHelperResult = {
+        output_text: launchHelperResultTemp.finalOutput ?? ""
+      };
+    } else {
+      const getDataResultTemp = await runner.run(
+        getData,
+        [
+          ...conversationHistory
+        ]
+      );
+      conversationHistory.push(...getDataResultTemp.newItems.map((item) => item.rawItem));
+
+      if (!getDataResultTemp.finalOutput) {
+          throw new Error("Agent result is undefined");
+      }
+
+      const getDataResult = {
+        output_text: getDataResultTemp.finalOutput ?? ""
+      };
+    }
+  });
+}
+
+#########################################
+
+ 

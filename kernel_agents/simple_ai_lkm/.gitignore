@@ -1,0 +1,15 @@
+# Kernel Build Artifacts
+*.o
+*.ko
+*.mod.c
+*.order
+*.symvers
+.*.cmd
+.tmp_versions/
+
+# Keys
+keys/
+
+# User binaries
+user_space_client
+client

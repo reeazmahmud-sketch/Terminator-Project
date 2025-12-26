@@ -1,0 +1,22 @@
+{
+  "folders": [
+    {
+      "path": "."
+    }
+  ],
+  "settings": {
+    "python.defaultInterpreterPath": "/usr/local/bin/python3",
+    "terminal.integrated.defaultProfile.osx": "zsh",
+    "files.exclude": {
+      "**/__pycache__": true,
+      "**/.git": true
+    },
+    "github.copilot.enable": {
+      "*": true
+    },
+    "continue.serverSettings": {
+      "model": "codellama:python",
+      "endpoint": "http://localhost:11434"
+    }
+  }
+}

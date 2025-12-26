@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>বাণীবাহক | VaniBahak - Bangla AI Processor</title>
+
+    <!-- Spline 3D Integration -->
+    <script type="module" src="https://unpkg.com/@splinetool/viewer@1.0.5/build/spline-viewer.js"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans Bengali', 'Segoe UI', Arial, sans-serif;
+            background: #0a0e27;
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Spline 3D Background - Option 1 (using spline-viewer) */
+        #spline-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -2;
+            pointer-events: none; /* Allow clicks to pass through */
+        }
+
+        /* Spline iframe - Option 2 (using iframe) */
+        #spline-iframe {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -2;
+            border: none;
+            pointer-events: none; /* Allow clicks to pass through */
+        }
+
+        /* Animated Wave Background - now overlays Spline */
+        .animated-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: linear-gradient(180deg, rgba(10, 14, 39, 0.3) 0%, rgba(26, 31, 74, 0.4) 50%, rgba(42, 37, 96, 0.5) 100%);
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .wave {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 200%;
+            height: 100%;
+            opacity: 0.5;
+        }
+
+        .wave1 {
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none"><path d="M0,0 C300,80 600,40 900,80 C1200,120 1200,0 1200,0 Z" fill="%23667eea" fill-opacity="0.3"/></svg>') repeat-x;
+            background-size: 1200px 120px;
+            animation: wave 25s linear infinite;
+            bottom: 0;
+        }
+
+        .wave2 {
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none"><path d="M0,60 C300,20 600,100 900,60 C1200,20 1200,120 1200,120 L0,120 Z" fill="%23764ba2" fill-opacity="0.2"/></svg>') repeat-x;
+            background-size: 1200px 120px;
+            animation: wave 30s linear infinite reverse;
+            bottom: 20px;
+        }
+
+        .wave3 {
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none"><path d="M0,40 C300,100 600,20 900,80 C1200,40 1200,120 1200,120 L0,120 Z" fill="%23f093fb" fill-opacity="0.15"/></svg>') repeat-x;
+            background-size: 1200px 120px;
+            animation: wave 35s linear infinite;
+            bottom: 40px;
+        }
+
+        @keyframes wave {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+
+        .particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+
+        .particle {
+            position: absolute;
+            width: 3px;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+            animation: float 20s infinite;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0) translateX(0); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(-1000px) translateX(100px); opacity: 0; }
+        }
+
+        /* Container */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 30px 0;
+        }
+
+        .header h1 {
+            font-size: 3em;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+            animation: glow 3s ease-in-out infinite;
+        }
+
+        .header p {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 1.2em;
+        }
+
+        @keyframes glow {
+            0%, 100% { filter: drop-shadow(0 0 20px rgba(102, 126, 234, 0.5)); }
+            50% { filter: drop-shadow(0 0 40px rgba(118, 75, 162, 0.8)); }
+        }
+
+        /* Menu Buttons - Floating */
+        .menu-container {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-bottom: 40px;
+            flex-wrap: wrap;
+        }
+
+        .menu-btn {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 20px 40px;
+            color: white;
+            font-size: 1.2em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .menu-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .menu-btn:hover::before {
+            left: 100%;
+        }
+
+        .menu-btn:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.5);
+            border-color: rgba(102, 126, 234, 0.8);
+        }
+
+        .menu-btn.active {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.3), rgba(118, 75, 162, 0.3));
+            border-color: #667eea;
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        /* Text Input - Rainbow Gradient Focus */
+        .input-container {
+            margin: 40px 0;
+            position: relative;
+        }
+
+        .text-input-wrapper {
+            position: relative;
+            border-radius: 15px;
+            padding: 3px;
+            background: transparent;
+            transition: all 0.3s ease;
+        }
+
+        .text-input-wrapper.focused {
+            background: linear-gradient(90deg,
+                #ff6b6b, #ffa500, #ffeb3b, #ff6b9d,
+                #c44569, #f093fb, #4facfe, #00f2fe
+            );
+            background-size: 400% 400%;
+            animation: rainbowShift 3s linear infinite;
+            box-shadow: 0 0 30px rgba(255, 107, 107, 0.5);
+        }
+
+        @keyframes rainbowShift {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 100% 50%; }
+        }
+
+        .main-textarea {
+            width: 100%;
+            min-height: 200px;
+            padding: 25px;
+            font-size: 1.2em;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-family: 'Noto Sans Bengali', Arial, sans-serif;
+            resize: vertical;
+            outline: none;
+        }
+
+        .main-textarea::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        /* Control Panel */
+        .control-panel {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 30px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .control-panel.active {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Buttons */
+        .action-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            color: white;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 5px;
+        }
+
+        .action-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.5);
+        }
+
+        /* Voice Controls */
+        .voice-controls {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        .voice-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            padding: 12px 25px;
+            border-radius: 10px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .voice-btn.active {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            border-color: #f093fb;
+        }
+
+        /* Language Switcher - Bottom Right */
+        .lang-switcher {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            z-index: 1000;
+        }
+
+        .lang-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            padding: 15px 25px;
+            border-radius: 50px;
+            color: white;
+            cursor: pointer;
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+            font-size: 1em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Settings Panel */
+        .settings-icon {
+            position: fixed;
+            top: 30px;
+            right: 30px;
+            font-size: 2em;
+            color: white;
+            cursor: pointer;
+            z-index: 1000;
+            animation: rotate 20s linear infinite;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .settings-panel {
+            position: fixed;
+            top: 0;
+            right: -400px;
+            width: 400px;
+            height: 100vh;
+            background: rgba(10, 14, 39, 0.95);
+            backdrop-filter: blur(20px);
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            transition: right 0.3s ease;
+            z-index: 999;
+            overflow-y: auto;
+        }
+
+        .settings-panel.open {
+            right: 0;
+        }
+
+        .settings-panel h2 {
+            color: white;
+            margin-bottom: 20px;
+        }
+
+        .settings-panel input,
+        .settings-panel select {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: white;
+            font-size: 1em;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2em;
+            }
+
+            .menu-container {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .settings-panel {
+                width: 100%;
+            }
+        }
+
+        /* Loading Animation */
+        .loading {
+            display: none;
+            text-align: center;
+            color: white;
+            margin: 20px 0;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Results */
+        .results {
+            margin-top: 30px;
+            display: none;
+        }
+
+        .results.active {
+            display: block;
+        }
+
+        .result-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            color: white;
+        }
+
+        .result-card h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Spline 3D Background (Option 1 - Web Component) -->
+    <!-- Replace YOUR_SCENE_URL with your Spline scene URL -->
+    <spline-viewer id="spline-bg" url=""></spline-viewer>
+
+    <!-- Spline 3D Background (Option 2 - iframe) - UNCOMMENT TO USE -->
+    <!-- <iframe id="spline-iframe" src="https://my.spline.design/YOUR_SCENE_ID/" frameborder="0"></iframe> -->
+
+    <!-- Animated Wave Background -->
+    <div class="animated-bg" id="waveBg">
+        <div class="wave wave1"></div>
+        <div class="wave wave2"></div>
+        <div class="wave wave3"></div>
+    </div>
+    <div class="particles" id="particles"></div>
+
+    <!-- Settings Icon -->
+    <div class="settings-icon" onclick="toggleSettings()">⚙️</div>
+
+    <!-- Settings Panel -->
+    <div class="settings-panel" id="settingsPanel">
+        <h2>⚙️ সেটিংস | Settings</h2>
+
+        <!-- Spline 3D Settings -->
+        <div style="margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+            <h3 style="color: rgba(255,255,255,0.9); margin-bottom: 15px; font-size: 1.1em;">🎨 3D Background</h3>
+
+            <label style="color: rgba(255,255,255,0.7); display: block; margin-bottom: 5px;">Enable Spline 3D:</label>
+            <select id="splineEnabled" onchange="toggleSplineBackground()">
+                <option value="false">Disabled (Waves Only)</option>
+                <option value="true">Enabled (3D Scene)</option>
+            </select>
+
+            <label style="color: rgba(255,255,255,0.7); display: block; margin-bottom: 5px; margin-top: 15px;">Spline Scene URL:</label>
+            <input type="text" id="splineUrl" placeholder="https://prod.spline.design/YOUR_SCENE_URL/scene.splinecode">
+            <p style="color: rgba(255,255,255,0.5); font-size: 0.85em; margin-top: 5px;">
+                Get your scene URL from Spline → Export → Copy Link
+            </p>
+
+            <button class="action-btn" onclick="saveSplineSettings()" style="margin-top: 10px;">💾 Apply 3D Scene</button>
+        </div>
+
+        <!-- API Settings -->
+        <h3 style="color: rgba(255,255,255,0.9); margin-bottom: 15px; font-size: 1.1em;">🔌 API সেটিংস</h3>
+        <label style="color: rgba(255,255,255,0.7); display: block; margin-bottom: 5px;">API Type:</label>
+        <select id="apiType">
+            <option value="free">Free API</option>
+            <option value="custom">Your API Key</option>
+            <option value="local">Local API</option>
+            <option value="http">HTTP Endpoint</option>
+        </select>
+
+        <label style="color: rgba(255,255,255,0.7); display: block; margin-bottom: 5px;">API Key:</label>
+        <input type="text" id="apiKey" placeholder="Enter your API key">
+
+        <label style="color: rgba(255,255,255,0.7); display: block; margin-bottom: 5px;">API Endpoint:</label>
+        <input type="text" id="apiEndpoint" placeholder="https://api.example.com">
+
+        <button class="action-btn" onclick="saveAPISettings()">💾 সেভ করুন</button>
+    </div>
+
+
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🇧🇩 বাণীবাহক | VaniBahak</h1>
+            <p>শব্দ, অনুবাদ এবং বিশ্লেষণ | Voice, Translation & Analysis</p>
+        </div>
+
+        <!-- Menu Buttons -->
+        <div class="menu-container">
+            <button class="menu-btn active" onclick="showMenu('read')" data-menu="read">
+                🎧 পড়ুন ও শুনুন<br><span style="font-size: 0.8em; opacity: 0.8;">Read & Listen</span>
+            </button>
+            <button class="menu-btn" onclick="showMenu('upload')" data-menu="upload">
+                📤 আপলোড করুন<br><span style="font-size: 0.8em; opacity: 0.8;">Upload</span>
+            </button>
+            <button class="menu-btn" onclick="showMenu('analyze')" data-menu="analyze">
+                ✨ বিশ্লেষণ করুন<br><span style="font-size: 0.8em; opacity: 0.8;">AI Analysis</span>
+            </button>
+        </div>
+
+        <!-- Text Input (Shared) -->
+        <div class="input-container">
+            <div class="text-input-wrapper" id="textWrapper">
+                <textarea class="main-textarea" id="mainText"
+                          placeholder="এখানে আপনার টেক্সট লিখুন বা পেস্ট করুন..."
+                          onfocus="document.getElementById('textWrapper').classList.add('focused')"
+                          onblur="document.getElementById('textWrapper').classList.remove('focused')"></textarea>
+            </div>
+        </div>
+
+        <!-- Read Menu Controls -->
+        <div class="control-panel active" id="readPanel">
+            <h2 style="color: white; margin-bottom: 20px;">🎧 শব্দ ও অনুবাদ নিয়ন্ত্রণ</h2>
+
+            <div class="voice-controls">
+                <button class="voice-btn active" onclick="selectVoice('male')">👨 পুরুষ কণ্ঠ</button>
+                <button class="voice-btn" onclick="selectVoice('female')">👩 মহিলা কণ্ঠ</button>
+            </div>
+
+            <div style="margin: 20px 0;">
+                <label style="color: rgba(255,255,255,0.7); display: block; margin-bottom: 10px;">ভাষা নির্বাচন করুন:</label>
+                <select id="readLang" style="width: 100%; padding: 12px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: white; font-size: 1em;">
+                    <option value="bn">বাংলা</option>
+                    <option value="en">English</option>
+                    <option value="hi">हिन्दी</option>
+                    <option value="ar">العربية</option>
+                </select>
+            </div>
+
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="action-btn" onclick="readAloud()">🔊 পড়ুন</button>
+                <button class="action-btn" onclick="translateAndRead()">🔄 অনুবাদ করে পড়ুন</button>
+                <button class="action-btn" onclick="startDictation()">🎤 ডিক্টেশন চালু করুন</button>
+                <button class="action-btn" onclick="stopSpeech()">⏹️ থামান</button>
+            </div>
+
+            <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
+                <h3 style="color: rgba(255,255,255,0.8); margin-bottom: 10px; font-size: 1em;">📋 ক্লিপবোর্ড অ্যাক্সেস</h3>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="action-btn" onclick="pasteFromClipboard()">📋 ক্লিপবোর্ড থেকে পেস্ট করুন</button>
+                    <button class="action-btn" onclick="copyToClipboard()">📋 ক্লিপবোর্ডে কপি করুন</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Upload Menu Controls -->
+        <div class="control-panel" id="uploadPanel">
+            <h2 style="color: white; margin-bottom: 20px;">📤 আপলোড ও আমদানি</h2>
+
+            <div style="margin-bottom: 20px; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 10px; border-left: 3px solid #667eea;">
+                <h3 style="color: rgba(255,255,255,0.8); margin-bottom: 10px; font-size: 1em;">📋 ক্লিপবোর্ড থেকে পেস্ট করুন</h3>
+                <p style="color: rgba(255,255,255,0.6); font-size: 0.9em; margin-bottom: 10px;">আপনার ডিভাইস থেকে সরাসরি টেক্সট কপি করুন</p>
+                <button class="action-btn" onclick="pasteFromClipboard()">📋 ক্লিপবোর্ড থেকে পেস্ট করুন</button>
+            </div>
+
+            <input type="file" id="fileInput" accept=".txt,.pdf,.docx,.md,.rtf" style="margin-bottom: 15px;">
+            <button class="action-btn" onclick="uploadFile()">📄 ফাইল আপলোড করুন</button>
+
+            <div style="margin: 20px 0;">
+                <input type="url" id="urlInput" placeholder="URL লিখুন"
+                       style="width: 100%; padding: 12px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: white; margin-bottom: 10px;">
+                <button class="action-btn" onclick="importFromURL()">🔗 URL থেকে আমদানি করুন</button>
+            </div>
+
+            <button class="action-btn" onclick="checkEmail()">📧 ইমেইল চেক করুন</button>
+        </div>
+
+        <!-- Analyze Menu Controls -->
+        <div class="control-panel" id="analyzePanel">
+            <h2 style="color: white; margin-bottom: 20px;">✨ এআই বিশ্লেষণ</h2>
+
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="action-btn" onclick="analyzeText()">🔍 বিশ্লেষণ করুন</button>
+                <button class="action-btn" onclick="beautifyText()">✨ সুন্দর করুন</button>
+                <button class="action-btn" onclick="getSuggestions()">💡 পরামর্শ পান</button>
+            </div>
+        </div>
+
+        <!-- Loading -->
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>প্রক্রিয়াকরণ চলছে...</p>
+        </div>
+
+        <!-- Results -->
+        <div class="results" id="results">
+            <div class="result-card">
+                <h3>📊 ফলাফল</h3>
+                <div id="resultContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========== SPLINE 3D BACKGROUND FUNCTIONS ==========
+
+        // Load Spline settings on page load
+        function loadSplineSettings() {
+            const splineSettings = JSON.parse(localStorage.getItem('splineSettings') || '{}');
+            const splineEnabled = splineSettings.enabled || false;
+            const splineUrl = splineSettings.url || '';
+
+            document.getElementById('splineEnabled').value = splineEnabled.toString();
+            document.getElementById('splineUrl').value = splineUrl;
+
+            if (splineEnabled && splineUrl) {
+                const splineBg = document.getElementById('spline-bg');
+                splineBg.setAttribute('url', splineUrl);
+                splineBg.style.display = 'block';
+            } else {
+                document.getElementById('spline-bg').style.display = 'none';
+            }
+        }
+
+        // Save Spline settings
+        function saveSplineSettings() {
+            const enabled = document.getElementById('splineEnabled').value === 'true';
+            const url = document.getElementById('splineUrl').value.trim();
+
+            if (enabled && !url) {
+                alert('⚠️ Please enter a Spline scene URL');
+                return;
+            }
+
+            localStorage.setItem('splineSettings', JSON.stringify({
+                enabled: enabled,
+                url: url
+            }));
+
+            // Apply immediately
+            const splineBg = document.getElementById('spline-bg');
+            if (enabled && url) {
+                splineBg.setAttribute('url', url);
+                splineBg.style.display = 'block';
+                alert('✅ 3D Scene applied! Loading...');
+            } else {
+                splineBg.style.display = 'none';
+                alert('✅ 3D Scene disabled');
+            }
+        }
+
+        // Toggle Spline background on/off
+        function toggleSplineBackground() {
+            const enabled = document.getElementById('splineEnabled').value === 'true';
+            const splineBg = document.getElementById('spline-bg');
+
+            if (enabled) {
+                const url = document.getElementById('splineUrl').value.trim();
+                if (!url) {
+                    document.getElementById('splineEnabled').value = 'false';
+                    alert('⚠️ Please enter a Spline scene URL first');
+                    return;
+                }
+                splineBg.style.display = 'block';
+            } else {
+                splineBg.style.display = 'none';
+            }
+        }
+
+        // ========== PARTICLE ANIMATION ==========
+
+        // Create animated particles
+        function createParticles() {
+            const particlesContainer = document.getElementById('particles');
+            for (let i = 0; i < 50; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 20 + 's';
+                particle.style.animationDuration = (Math.random() * 10 + 10) + 's';
+                particlesContainer.appendChild(particle);
+            }
+        }
+        createParticles();
+
+        // Load Spline settings on page load
+        loadSplineSettings();
+
+        // Menu switching
+        let currentMenu = 'read';
+        let selectedVoice = 'male';
+        let recognition;
+
+        function showMenu(menu) {
+            // Update active button
+            document.querySelectorAll('.menu-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.menu === menu) {
+                    btn.classList.add('active');
+                }
+            });
+
+            // Hide all panels
+            document.querySelectorAll('.control-panel').forEach(panel => {
+                panel.classList.remove('active');
+            });
+
+            // Show selected panel
+            document.getElementById(menu + 'Panel').classList.add('active');
+            currentMenu = menu;
+        }
+
+        // Voice selection
+        function selectVoice(voice) {
+            selectedVoice = voice;
+            document.querySelectorAll('.voice-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+        }
+
+        // Read aloud
+        function readAloud() {
+            const text = document.getElementById('mainText').value;
+            const lang = document.getElementById('readLang').value;
+
+            if (!text) {
+                alert('টেক্সট লিখুন');
+                return;
+            }
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = lang === 'bn' ? 'bn-BD' : lang === 'en' ? 'en-US' : lang === 'hi' ? 'hi-IN' : 'ar-SA';
+
+            // Get voices
+            const voices = speechSynthesis.getVoices();
+            const voiceType = selectedVoice === 'male' ? 'Male' : 'Female';
+            const voice = voices.find(v => v.lang.includes(utterance.lang.split('-')[0]) && v.name.includes(voiceType));
+
+            if (voice) utterance.voice = voice;
+            speechSynthesis.speak(utterance);
+        }
+
+        // Translate and read
+        async function translateAndRead() {
+            const text = document.getElementById('mainText').value;
+            const targetLang = document.getElementById('readLang').value;
+
+            if (!text) {
+                alert('টেক্সট লিখুন');
+                return;
+            }
+
+            document.getElementById('loading').classList.add('active');
+
+            try {
+                const response = await fetch('/api/translate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        text: text,
+                        source_lang: 'auto',
+                        target_lang: targetLang
+                    })
+                });
+
+                const data = await response.json();
+                document.getElementById('loading').classList.remove('active');
+
+                if (data.translated_text) {
+                    document.getElementById('mainText').value = data.translated_text;
+                    setTimeout(() => readAloud(), 500);
+                }
+            } catch (error) {
+                document.getElementById('loading').classList.remove('active');
+                alert('Translation error: ' + error.message);
+            }
+        }
+
+        // Voice dictation
+        function startDictation() {
+            if (!('webkitSpeechRecognition' in window)) {
+                alert('Voice recognition not supported');
+                return;
+            }
+
+            recognition = new webkitSpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'bn-BD';
+
+            recognition.onresult = (event) => {
+                let finalTranscript = '';
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript;
+                    }
+                }
+                document.getElementById('mainText').value += finalTranscript;
+            };
+
+            recognition.start();
+            alert('🎤 Dictation চালু হয়েছে');
+        }
+
+        function stopSpeech() {
+            speechSynthesis.cancel();
+            if (recognition) recognition.stop();
+        }
+
+        // Upload file
+        async function uploadFile() {
+            const fileInput = document.getElementById('fileInput');
+            if (!fileInput.files[0]) {
+                alert('ফাইল নির্বাচন করুন');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            document.getElementById('loading').classList.add('active');
+
+            try {
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                document.getElementById('loading').classList.remove('active');
+
+                if (data.text) {
+                    document.getElementById('mainText').value = data.text;
+                }
+            } catch (error) {
+                document.getElementById('loading').classList.remove('active');
+                alert('Upload error: ' + error.message);
+            }
+        }
+
+        // Import from URL
+        async function importFromURL() {
+            const url = document.getElementById('urlInput').value;
+            if (!url) {
+                alert('URL লিখুন');
+                return;
+            }
+
+            document.getElementById('loading').classList.add('active');
+
+            try {
+                const response = await fetch('/api/import-url', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: url })
+                });
+                const data = await response.json();
+                document.getElementById('loading').classList.remove('active');
+
+                if (data.text) {
+                    document.getElementById('mainText').value = data.text;
+                }
+            } catch (error) {
+                document.getElementById('loading').classList.remove('active');
+                alert('Import error: ' + error.message);
+            }
+        }
+
+        // Analyze text
+        async function analyzeText() {
+            const text = document.getElementById('mainText').value;
+            if (!text) {
+                alert('টেক্সট লিখুন');
+                return;
+            }
+
+            document.getElementById('loading').classList.add('active');
+
+            try {
+                const response = await fetch('/api/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: text })
+                });
+                const data = await response.json();
+                document.getElementById('loading').classList.remove('active');
+
+                document.getElementById('results').classList.add('active');
+                document.getElementById('resultContent').innerHTML = `
+                    <p>শব্দ সংখ্যা: ${data.word_count}</p>
+                    <p>রেটিং: ${data.rating}/10</p>
+                    <p>মতামত: ${data.opinion}</p>
+                `;
+            } catch (error) {
+                document.getElementById('loading').classList.remove('active');
+                alert('Analysis error: ' + error.message);
+            }
+        }
+
+        // Settings
+        function toggleSettings() {
+            document.getElementById('settingsPanel').classList.toggle('open');
+        }
+
+        function saveAPISettings() {
+            const apiType = document.getElementById('apiType').value;
+            const apiKey = document.getElementById('apiKey').value;
+            const apiEndpoint = document.getElementById('apiEndpoint').value;
+
+            localStorage.setItem('apiSettings', JSON.stringify({
+                type: apiType,
+                key: apiKey,
+                endpoint: apiEndpoint
+            }));
+
+            alert('সেটিংস সেভ হয়েছে!');
+        }
+
+        // Language switcher
+        function toggleLangMenu() {
+            // Implementation for language menu
+        }
+
+        // Clipboard functions with permission
+        async function pasteFromClipboard() {
+            try {
+                // Request clipboard permission
+                const permission = await navigator.permissions.query({ name: 'clipboard-read' });
+
+                if (permission.state === 'denied') {
+                    alert('ক্লিপবোর্ড অ্যাক্সেসের অনুমতি প্রয়োজন। দয়া করে ব্রাউজার সেটিংস থেকে অনুমতি দিন।');
+                    return;
+                }
+
+                // Read from clipboard
+                const text = await navigator.clipboard.readText();
+
+                if (text) {
+                    const currentText = document.getElementById('mainText').value;
+                    document.getElementById('mainText').value = currentText + (currentText ? '\n\n' : '') + text;
+                    alert('✅ ক্লিপবোর্ড থেকে টেক্সট পেস্ট হয়েছে!');
+                } else {
+                    alert('ক্লিপবোর্ডে কোনো টেক্সট নেই');
+                }
+            } catch (error) {
+                // Fallback for browsers that don't support Clipboard API
+                alert('ক্লিপবোর্ড অ্যাক্সেস ব্যর্থ। দয়া করে Ctrl+V ব্যবহার করে ম্যানুয়ালি পেস্ট করুন।');
+                console.error('Clipboard error:', error);
+            }
+        }
+
+        async function copyToClipboard() {
+            const text = document.getElementById('mainText').value;
+
+            if (!text) {
+                alert('কপি করার জন্য টেক্সট লিখুন');
+                return;
+            }
+
+            try {
+                await navigator.clipboard.writeText(text);
+                alert('✅ ক্লিপবোর্ডে কপি হয়েছে!');
+            } catch (error) {
+                // Fallback method
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = '0';
+                document.body.appendChild(textarea);
+                textarea.select();
+
+                try {
+                    document.execCommand('copy');
+                    alert('✅ ক্লিপবোর্ডে কপি হয়েছে!');
+                } catch (err) {
+                    alert('কপি ব্যর্থ। দয়া করে Ctrl+C ব্যবহার করে ম্যানুয়ালি কপি করুন।');
+                }
+
+                document.body.removeChild(textarea);
+            }
+        }
+
+        // Request clipboard permission on page load
+        window.addEventListener('load', async () => {
+            // Try to request clipboard permission silently
+            try {
+                await navigator.permissions.query({ name: 'clipboard-read' });
+            } catch (e) {
+                console.log('Clipboard permission query not supported');
+            }
+        });
+
+        // Beautify text
+        async function beautifyText() {
+            const text = document.getElementById('mainText').value;
+            if (!text) {
+                alert('টেক্সট লিখুন');
+                return;
+            }
+
+            document.getElementById('loading').classList.add('active');
+
+            try {
+                const response = await fetch('/api/beautify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: text })
+                });
+                const data = await response.json();
+                document.getElementById('loading').classList.remove('active');
+
+                if (data.beautified) {
+                    document.getElementById('mainText').value = data.beautified;
+                    alert('✅ টেক্সট সুন্দর করা হয়েছে!');
+                }
+            } catch (error) {
+                document.getElementById('loading').classList.remove('active');
+                alert('Error: ' + error.message);
+            }
+        }
+
+        // Get suggestions
+        async function getSuggestions() {
+            const text = document.getElementById('mainText').value;
+            if (!text) {
+                alert('টেক্সট লিখুন');
+                return;
+            }
+
+            document.getElementById('loading').classList.add('active');
+
+            try {
+                const response = await fetch('/api/suggestions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: text })
+                });
+                const data = await response.json();
+                document.getElementById('loading').classList.remove('active');
+
+                if (data.suggestions) {
+                    document.getElementById('results').classList.add('active');
+                    document.getElementById('resultContent').innerHTML = `
+                        <h4>💡 পরামর্শ:</h4>
+                        ${data.suggestions.map(s => `<p>• ${s.suggestion}</p>`).join('')}
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('loading').classList.remove('active');
+                alert('Error: ' + error.message);
+            }
+        }
+
+        // Check email
+        async function checkEmail() {
+            document.getElementById('loading').classList.add('active');
+
+            try {
+                const response = await fetch('/api/check-inbox');
+                const data = await response.json();
+                document.getElementById('loading').classList.remove('active');
+
+                if (data.messages && data.messages.length > 0) {
+                    document.getElementById('mainText').value = data.messages[0].text;
+                    alert('✅ ইমেইল থেকে টেক্সট লোড হয়েছে!');
+                } else {
+                    alert('📭 কোনো নতুন বার্তা নেই');
+                }
+            } catch (error) {
+                document.getElementById('loading').classList.remove('active');
+                alert('Error: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>
