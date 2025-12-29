@@ -59,6 +59,16 @@ class AgentRegistry:
             'max_restarts': 5,
             'restart_delay': 10,
         },
+        'auto_doc_updater': {
+            'name': 'Auto-Documentation Updater',
+            'script': 'core/terminator_auto_doc_updater.py',
+            'pid_file': '.logs/auto_doc.pid',
+            'log_file': '.logs/auto_doc.log',
+            'critical': False,
+            'auto_restart': True,
+            'max_restarts': 5,
+            'restart_delay': 10,
+        },
     }
 
 class AgentHealthMonitor:
