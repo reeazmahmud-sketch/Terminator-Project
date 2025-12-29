@@ -71,7 +71,7 @@ SESSION_START = time.time()
 
 # Ollama LLM Configuration
 OLLAMA_URL = "http://localhost:11434/api/chat"
-OLLAMA_MODEL = "llama3:latest"
+OLLAMA_MODEL = "ministral-3:14b"  # Default model (changed from llama3:latest)
 
 # =============================================================================
 # AGENTIC TOOLS SYSTEM - Claude Code-like capabilities for Terminator
@@ -567,6 +567,7 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
             "/quit": self.cmd_exit,
             "/rate-limit-options": self.cmd_rate_limit_options,
             "/model": self.cmd_model,
+            "/api-keys": self.cmd_api_keys,
             "/context": self.cmd_context,
             "/tokens": self.cmd_tokens,
             "/budget": self.cmd_budget,
@@ -630,7 +631,7 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
             "default_platform": "web",
 
             # Claude-style settings
-            "model": "llama3:latest",  # Default Ollama model, change with /model
+            "model": "ministral-3:14b",  # Default Ollama model, change with /model
             "temperature": 0.7,
             "max_tokens": 4096,
             "top_p": 0.9,
@@ -918,7 +919,8 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
         table.add_column("Command", style="yellow", width=22)
         table.add_column("Description", width=45)
 
-        table.add_row("/model", "List Ollama models & switch (/model 3)")
+        table.add_row("/model", "List & switch models (Ollama + API)")
+        table.add_row("/api-keys", "Manage API keys (Claude, Gemini, etc)")
         table.add_row("/context", "Show context usage")
         table.add_row("/tokens", "Show token statistics")
         table.add_row("/reset", "Reset conversation")
@@ -1503,15 +1505,103 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
         console.print("\n[dim]Local LLM = no limits![/dim]")
 
     def get_ollama_models(self) -> List[Dict[str, Any]]:
-        """Fetch available Ollama models from the API"""
+        """Fetch available Ollama models from both API and custom directory"""
+        models = []
+
+        # Method 1: Try Ollama API first
         try:
             import requests
             response = requests.get("http://localhost:11434/api/tags", timeout=5)
             if response.status_code == 200:
-                return response.json().get("models", [])
+                models.extend(response.json().get("models", []))
         except Exception as e:
-            console.print(f"[red]Error fetching Ollama models: {e}[/red]")
-        return []
+            console.print(f"[dim]Ollama API: {e}[/dim]")
+
+        # Method 2: Scan custom models directory
+        try:
+            from pathlib import Path
+            import json
+
+            custom_models_dir = Path("/Users/reeazmahmud/Desktop/Ollama Models/manifests/registry.ollama.ai/library")
+
+            if custom_models_dir.exists():
+                model_names_seen = {m.get("name") for m in models if m.get("name")}
+
+                for model_dir in custom_models_dir.iterdir():
+                    if model_dir.is_dir() and not model_dir.name.startswith('.'):
+                        # Find manifest files (could be "latest", "14b", "12b", etc.)
+                        for manifest_file in model_dir.iterdir():
+                            if manifest_file.is_file() and not manifest_file.name.startswith('.'):
+                                model_name = f"{model_dir.name}:{manifest_file.name}"
+
+                                # Skip if already in list from API
+                                if model_name in model_names_seen:
+                                    continue
+
+                                # Try to read manifest for size info
+                                size = 0
+                                try:
+                                    with open(manifest_file, 'r') as f:
+                                        manifest = json.load(f)
+                                        # Sum up layer sizes
+                                        for layer in manifest.get("layers", []):
+                                            size += layer.get("size", 0)
+                                except:
+                                    pass
+
+                                # Format modification time as string
+                                import datetime
+                                mod_time = manifest_file.stat().st_mtime if manifest_file.exists() else 0
+                                mod_time_str = datetime.datetime.fromtimestamp(mod_time).isoformat() if mod_time > 0 else ""
+
+                                models.append({
+                                    "name": model_name,
+                                    "size": size,
+                                    "modified_at": mod_time_str
+                                })
+        except Exception as e:
+            console.print(f"[dim]Custom dir scan: {e}[/dim]")
+
+        # Method 3: Add API models (Claude, Gemini, OpenAI, Grok)
+        try:
+            from core.terminator_secrets_manager import TerminatorSecretsManager, SecretType
+            secrets_manager = TerminatorSecretsManager()
+
+            # Check which API keys are available
+            has_claude = secrets_manager.get_secret(SecretType.ANTHROPIC_API_KEY) is not None
+            has_gemini = secrets_manager.get_secret(SecretType.GEMINI_API_KEY) is not None
+            has_openai = secrets_manager.get_secret(SecretType.OPENAI_API_KEY) is not None
+
+            # Claude models (if API key is set)
+            if has_claude:
+                claude_models = [
+                    {"name": "claude-sonnet-4.5", "size": 0, "modified_at": "API", "type": "api"},
+                    {"name": "claude-opus-4", "size": 0, "modified_at": "API", "type": "api"},
+                    {"name": "claude-haiku-4", "size": 0, "modified_at": "API", "type": "api"},
+                ]
+                models.extend(claude_models)
+
+            # Gemini models (if API key is set)
+            if has_gemini:
+                gemini_models = [
+                    {"name": "gemini-2.0-flash", "size": 0, "modified_at": "API", "type": "api"},
+                    {"name": "gemini-1.5-pro", "size": 0, "modified_at": "API", "type": "api"},
+                ]
+                models.extend(gemini_models)
+
+            # OpenAI models (if API key is set)
+            if has_openai:
+                openai_models = [
+                    {"name": "gpt-4-turbo", "size": 0, "modified_at": "API", "type": "api"},
+                    {"name": "gpt-4o", "size": 0, "modified_at": "API", "type": "api"},
+                    {"name": "o1-preview", "size": 0, "modified_at": "API", "type": "api"},
+                ]
+                models.extend(openai_models)
+
+        except Exception as e:
+            console.print(f"[dim]API models: {e}[/dim]")
+
+        return models
 
     def format_size(self, size_bytes: int) -> str:
         """Format bytes to human readable size"""
@@ -1589,6 +1679,88 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
             self.save_settings()
             console.print(f"\n[green]✅ Model changed to:[/green] [bold]{new_model}[/bold]")
             console.print("[dim]All future queries will use this model[/dim]\n")
+
+    def cmd_api_keys(self, args: List[str] = None):
+        """Manage API keys for cloud models (Claude, Gemini, Grok, OpenAI)"""
+        from core.terminator_secrets_manager import TerminatorSecretsManager, SecretType
+        import getpass
+
+        secrets_manager = TerminatorSecretsManager()
+
+        if not args:
+            # Show status of all API keys
+            console.print("\n[bold cyan]🔑 API Keys Status[/bold cyan]\n")
+
+            table = Table(show_header=True, box=ROUNDED)
+            table.add_column("Provider", style="cyan", width=20)
+            table.add_column("Status", width=15)
+            table.add_column("Action", style="dim", width=30)
+
+            api_keys_status = {
+                "Gemini": SecretType.GEMINI_API_KEY,
+                "Claude": SecretType.ANTHROPIC_API_KEY,
+                "OpenAI": SecretType.OPENAI_API_KEY,
+            }
+
+            for provider, secret_type in api_keys_status.items():
+                key = secrets_manager.get_secret(secret_type)
+                if key:
+                    masked_key = f"{key[:8]}...{key[-4:]}" if len(key) > 12 else "***"
+                    table.add_row(provider, f"[green]✓ Set[/green]", f"Key: {masked_key}")
+                else:
+                    table.add_row(provider, f"[red]✗ Not Set[/red]", f"/api-keys set {provider.lower()}")
+
+            console.print(table)
+            console.print("\n[dim]Usage:[/dim]")
+            console.print("[dim]  /api-keys set <provider>    - Set API key[/dim]")
+            console.print("[dim]  /api-keys remove <provider> - Remove API key[/dim]")
+            console.print("[dim]  Providers: gemini, claude, openai, grok[/dim]\n")
+
+        elif args[0] == "set" and len(args) > 1:
+            provider = args[1].lower()
+
+            # Map provider name to SecretType
+            provider_map = {
+                "gemini": SecretType.GEMINI_API_KEY,
+                "claude": SecretType.ANTHROPIC_API_KEY,
+                "anthropic": SecretType.ANTHROPIC_API_KEY,
+                "openai": SecretType.OPENAI_API_KEY,
+                "grok": SecretType.OPENAI_API_KEY,  # Grok uses OpenAI-compatible API
+            }
+
+            if provider not in provider_map:
+                console.print(f"[red]Unknown provider: {provider}[/red]")
+                console.print("[dim]Available: gemini, claude, openai, grok[/dim]\n")
+                return
+
+            # Prompt for API key securely (hidden input)
+            console.print(f"\n[cyan]Enter your {provider.title()} API key:[/cyan]")
+            console.print("[dim](Input will be hidden for security)[/dim]")
+
+            try:
+                api_key = getpass.getpass("API Key: ")
+
+                if not api_key or len(api_key) < 10:
+                    console.print("[red]Invalid API key (too short)[/red]\n")
+                    return
+
+                # Store in macOS Keychain
+                if secrets_manager.store_secret(provider_map[provider], api_key):
+                    console.print(f"\n[green]✅ {provider.title()} API key saved securely in macOS Keychain[/green]")
+                    console.print(f"[dim]You can now use {provider.title()} models with /model[/dim]\n")
+                else:
+                    console.print(f"[red]Failed to save API key[/red]\n")
+
+            except KeyboardInterrupt:
+                console.print("\n[yellow]Cancelled[/yellow]\n")
+
+        elif args[0] == "remove" and len(args) > 1:
+            provider = args[1].lower()
+            console.print(f"[yellow]⚠ Removing {provider.title()} API key from Keychain[/yellow]")
+            console.print("[dim]You'll need to set it again to use this provider[/dim]\n")
+
+        else:
+            console.print("[yellow]Usage: /api-keys [set|remove] <provider>[/yellow]\n")
 
     # =========================================================================
     # AGENTIC TOOL COMMANDS - Claude Code-like capabilities
