@@ -39,6 +39,26 @@ class AgentRegistry:
             'max_restarts': 5,
             'restart_delay': 10,
         },
+        'intelligent_disk_cleanup': {
+            'name': 'Intelligent Disk Cleanup',
+            'script': 'core/terminator_intelligent_disk_cleanup.py',
+            'pid_file': '.logs/disk_cleanup.pid',
+            'log_file': '.logs/disk_cleanup.log',
+            'critical': True,
+            'auto_restart': True,
+            'max_restarts': 5,
+            'restart_delay': 10,
+        },
+        'smart_notifications': {
+            'name': 'Smart Notification System',
+            'script': 'core/terminator_smart_notifications.py',
+            'pid_file': '.logs/notifications.pid',
+            'log_file': '.logs/notifications.log',
+            'critical': False,  # Not critical, but nice to have
+            'auto_restart': True,
+            'max_restarts': 5,
+            'restart_delay': 10,
+        },
     }
 
 class AgentHealthMonitor:
