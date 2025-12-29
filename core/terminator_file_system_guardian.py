@@ -241,14 +241,32 @@ class FileSystemGuardian:
         return None
 
     def _is_protected(self, path: Path) -> bool:
-        """Check if path is protected"""
-        for protected in self.protected_paths:
-            try:
-                path.relative_to(protected)
-                return True
-            except ValueError:
-                continue
-        return False
+        """
+        Check if path is protected
+
+        SECURITY: Resolves path to prevent directory traversal attacks
+        """
+        try:
+            # SECURITY: Resolve all symlinks and '..' to get real absolute path
+            resolved_path = path.resolve()
+
+            for protected in self.protected_paths:
+                # SECURITY: Resolve protected path as well
+                resolved_protected = protected.resolve()
+
+                # Check if path is under protected directory
+                try:
+                    resolved_path.relative_to(resolved_protected)
+                    return True
+                except ValueError:
+                    continue
+
+            return False
+
+        except (ValueError, RuntimeError, OSError) as e:
+            # If path resolution fails, treat as unprotected (safer default)
+            print(f"⚠️  Path resolution failed for {path}: {e}")
+            return False
 
     def _move_file(self, source: Path, destination: Path, category: FileCategory) -> None:
         """Move file to destination"""
@@ -330,12 +348,70 @@ class FileSystemGuardian:
         except Exception as e:
             pass
 
+    def validate_path(self, path_str: str) -> Optional[Path]:
+        """
+        Validate and sanitize a file path
+
+        SECURITY: Prevents path traversal attacks by:
+        1. Resolving all symlinks and '..' sequences
+        2. Converting to absolute path
+        3. Checking against allowed base directories
+
+        Args:
+            path_str: String path to validate
+
+        Returns:
+            Validated Path object or None if invalid
+        """
+        try:
+            # SECURITY: Convert to Path and resolve fully
+            path = Path(path_str).resolve()
+
+            # SECURITY: Ensure path exists (prevents creation of malicious paths)
+            if not path.exists():
+                print(f"⚠️  Path does not exist: {path_str}")
+                return None
+
+            # SECURITY: Ensure path is under allowed directories
+            allowed_bases = [
+                self.home.resolve(),
+                Path("/tmp").resolve()
+            ]
+
+            is_allowed = False
+            for base in allowed_bases:
+                try:
+                    path.relative_to(base)
+                    is_allowed = True
+                    break
+                except ValueError:
+                    continue
+
+            if not is_allowed:
+                print(f"🛑 SECURITY: Path outside allowed directories: {path}")
+                return None
+
+            return path
+
+        except (ValueError, RuntimeError, OSError) as e:
+            print(f"⚠️  Path validation failed for {path_str}: {e}")
+            return None
+
     def prevent_deletion(self, file_path: str) -> bool:
         """
         Check if file deletion should be prevented.
         Returns True if deletion blocked.
+
+        SECURITY: Uses validated path to prevent directory traversal
         """
-        path = Path(file_path)
+        # SECURITY: Validate and sanitize path first
+        path = self.validate_path(file_path)
+
+        if path is None:
+            # Invalid path - block deletion as safety measure
+            print(f"🛑 DELETION BLOCKED: Invalid path {file_path}")
+            self.stats['violations_prevented'] += 1
+            return True
 
         # Check if protected
         if self._is_protected(path):

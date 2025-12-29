@@ -3,11 +3,13 @@ import sys
 import asyncio
 import json
 import logging
-from datetime import datetime
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+import secrets
+from datetime import datetime, timedelta
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Query
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
-from typing import List
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from typing import List, Dict, Optional
 
 # Ensure we can import core modules
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -22,6 +24,71 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("TerminatorBridge")
 
 app = FastAPI()
+
+# SECURITY: Configure CORS with restricted origins
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:8000",
+        "http://localhost:5173",  # Vite dev server
+        "http://127.0.0.1:8000",
+        "http://127.0.0.1:5173"
+    ],
+    allow_credentials=True,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type", "Authorization"],
+)
+
+# SECURITY: Session/Token Management
+class SessionManager:
+    """Manages authentication tokens for WebSocket connections"""
+
+    def __init__(self):
+        self.sessions: Dict[str, dict] = {}
+        self.session_timeout = 3600  # 1 hour in seconds
+
+    def create_session(self, user_id: str = "default_user") -> str:
+        """Create a new session token"""
+        token = secrets.token_urlsafe(32)  # 256 bits of entropy
+        self.sessions[token] = {
+            'user_id': user_id,
+            'created_at': datetime.now(),
+            'expires_at': datetime.now() + timedelta(seconds=self.session_timeout),
+            'last_activity': datetime.now()
+        }
+        logger.info(f"🔐 New session created for {user_id}")
+        return token
+
+    def verify_token(self, token: Optional[str]) -> bool:
+        """Verify if a token is valid and not expired"""
+        if not token or token not in self.sessions:
+            return False
+
+        session = self.sessions[token]
+
+        # Check if expired
+        if datetime.now() > session['expires_at']:
+            del self.sessions[token]
+            logger.warning(f"⚠️  Session expired and removed")
+            return False
+
+        # Update last activity
+        session['last_activity'] = datetime.now()
+        return True
+
+    def cleanup_expired_sessions(self):
+        """Remove expired sessions"""
+        now = datetime.now()
+        expired = [token for token, session in self.sessions.items()
+                  if now > session['expires_at']]
+
+        for token in expired:
+            del self.sessions[token]
+
+        if expired:
+            logger.info(f"🧹 Cleaned up {len(expired)} expired sessions")
+
+session_manager = SessionManager()
 
 # Connection Manager for WebSockets
 class ConnectionManager:
@@ -99,21 +166,66 @@ async def metrics_broadcaster():
 
         await asyncio.sleep(2)  # 2-second interval
 
-# --- WebSocket Endpoint ---
+# SECURITY: Authentication Endpoint
+@app.post("/api/auth/session")
+async def create_session():
+    """Create a new authenticated session token"""
+    try:
+        # In production, you would validate credentials here
+        # For now, we create a session for local access
+        token = session_manager.create_session("local_user")
+        return JSONResponse({
+            "token": token,
+            "expires_in": session_manager.session_timeout
+        })
+    except Exception as e:
+        logger.error(f"Session creation error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create session")
+
+# SECURITY: Secured WebSocket Endpoint
 @app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
+async def websocket_endpoint(websocket: WebSocket, token: Optional[str] = Query(None)):
+    """
+    Secure WebSocket endpoint with token authentication
+
+    Usage: ws://localhost:8000/ws?token=YOUR_TOKEN_HERE
+    """
+    # SECURITY: Verify token before accepting connection
+    if not session_manager.verify_token(token):
+        logger.warning(f"⚠️  Unauthorized WebSocket connection attempt")
+        await websocket.close(code=4001, reason="Unauthorized - Invalid or missing token")
+        return
+
+    logger.info(f"✅ Authenticated WebSocket connection established")
     await manager.connect(websocket)
+
     try:
         while True:
             data = await websocket.receive_text()
+
+            # SECURITY: Re-verify token on each message (prevents token reuse after expiry)
+            if not session_manager.verify_token(token):
+                await websocket.send_text(json.dumps({
+                    "type": "error",
+                    "content": "Session expired. Please reconnect."
+                }))
+                break
+
             # Parse command from Frontend
             try:
                 command_data = json.loads(data)
                 command = command_data.get("command")
-                
+
+                # SECURITY: Validate command length
+                if command and len(command) > 10000:
+                    await websocket.send_text(json.dumps({
+                        "type": "error",
+                        "content": "Command too long (max 10KB)"
+                    }))
+                    continue
+
                 if command:
                     # Send to Terminator Bus (to Master Agent)
-                    # We send to 'terminator_master' usually
                     await bus.send_message_async(
                         sender_agent="web_bridge",
                         recipient_agent="terminator_master",
@@ -121,17 +233,24 @@ async def websocket_endpoint(websocket: WebSocket):
                         content={"command": command},
                         message_type=MessageType.REQUEST
                     )
-                    
+
                     # Ack
                     await websocket.send_text(json.dumps({
                         "type": "system",
-                        "content": f"Command '{command}' sent to neural net."
+                        "content": f"Command '{command[:100]}...' sent to neural net."
                     }))
+            except json.JSONDecodeError:
+                logger.error("Invalid JSON received")
+                await websocket.send_text(json.dumps({
+                    "type": "error",
+                    "content": "Invalid JSON format"
+                }))
             except Exception as e:
                 logger.error(f"Error processing command: {e}")
-                
+
     except WebSocketDisconnect:
         manager.disconnect(websocket)
+        logger.info("WebSocket disconnected")
 
 # --- Static Files (The React App) ---
 # Serve the React build directory
@@ -151,6 +270,13 @@ if os.path.exists(react_dist):
 else:
     logger.warning("⚠️ React build not found. Run 'npm run build' in terminator-web-terminal/")
 
+# --- Session Cleanup Task ---
+async def session_cleanup_task():
+    """Periodically cleanup expired sessions"""
+    while True:
+        await asyncio.sleep(300)  # Every 5 minutes
+        session_manager.cleanup_expired_sessions()
+
 # --- Startup Event ---
 @app.on_event("startup")
 async def startup_event():
@@ -160,6 +286,10 @@ async def startup_event():
     # Start metrics broadcaster
     asyncio.create_task(metrics_broadcaster())
     logger.info("✅ Metrics broadcaster scheduled")
+
+    # SECURITY: Start session cleanup task
+    asyncio.create_task(session_cleanup_task())
+    logger.info("✅ Session cleanup task scheduled")
 
     # Start the Infinite Loop Guardian Agent
     logger.info("🛡️  Starting Infinite Loop Guardian...")

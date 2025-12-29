@@ -24,3 +24,7 @@ python-dotenv==1.0.0
 asyncio==3.4.3
 pydantic==2.5.0
 requests==2.31.0
+
+# Security
+keyring==24.3.0  # Secure credential storage in macOS Keychain
+cryptography==41.0.7  # Encryption for biometric templates

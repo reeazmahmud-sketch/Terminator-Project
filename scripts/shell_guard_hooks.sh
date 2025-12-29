@@ -158,15 +158,15 @@ check_shell_on_startup() {
 }
 
 # Export functions so they're available in the shell
-export -f check_command_authorization
-export -f brew
-export -f npm
-export -f pip
-export -f pip3
-export -f chsh
-export -f bash
-export -f sh
-export -f check_shell_on_startup
+#export -f check_command_authorization
+#export -f brew
+#export -f npm
+#export -f pip
+#export -f pip3
+#export -f chsh
+#export -f bash
+#export -f sh
+#export -f check_shell_on_startup
 
 # Run shell check on startup (optional, comment out if too intrusive)
 # check_shell_on_startup

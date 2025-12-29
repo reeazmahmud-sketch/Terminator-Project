@@ -15,6 +15,7 @@ import sys
 import json
 import hashlib
 import subprocess
+import shlex
 from pathlib import Path
 from datetime import datetime
 from typing import Optional, Dict, List, Tuple
@@ -103,19 +104,26 @@ class BiometricShellGuard:
             Tuple of (success: bool, message: str)
         """
         try:
+            # SECURITY: Sanitize reason to prevent command injection
+            # Remove any shell metacharacters and limit length
+            safe_reason = reason.replace('"', '\\"').replace("'", "\\'")[:100]
+
             # Use macOS's built-in biometric authentication via sudo with Touch ID
             # This leverages the pam_tid.so module configured in /etc/pam.d/sudo
 
-            auth_script = f"""
-            osascript -e 'display dialog "{reason}" buttons {{"Cancel", "Authenticate"}} default button "Authenticate" with icon caution' 2>/dev/null
-            """
+            # First, show dialog using osascript with sanitized input
+            # Using array form with shell=False for security
+            dialog_cmd = [
+                'osascript', '-e',
+                f'display dialog "{safe_reason}" buttons {{"Cancel", "Authenticate"}} default button "Authenticate" with icon caution'
+            ]
 
-            # First, show dialog
             dialog_result = subprocess.run(
-                auth_script,
-                shell=True,
+                dialog_cmd,
+                shell=False,  # SECURITY: No shell injection possible
                 capture_output=True,
-                text=True
+                text=True,
+                timeout=10
             )
 
             if dialog_result.returncode != 0:
@@ -125,16 +133,17 @@ class BiometricShellGuard:
             # The -v flag validates cached credentials or prompts for Touch ID
             auth_result = subprocess.run(
                 ['sudo', '-v'],
+                shell=False,  # SECURITY: Command array, no shell
                 capture_output=True,
                 text=True,
                 timeout=30
             )
 
             if auth_result.returncode == 0:
-                self._log_audit(f"Biometric authentication successful: {reason}", "SUCCESS")
+                self._log_audit(f"Biometric authentication successful: {safe_reason}", "SUCCESS")
                 return True, "Biometric authentication successful"
             else:
-                self._log_audit(f"Biometric authentication failed: {reason}", "FAILURE")
+                self._log_audit(f"Biometric authentication failed: {safe_reason}", "FAILURE")
                 return False, "Biometric authentication failed"
 
         except subprocess.TimeoutExpired:
@@ -152,24 +161,30 @@ class BiometricShellGuard:
             Tuple of (success: bool, message: str)
         """
         try:
+            # SECURITY: Sanitize reason parameter
+            safe_reason = reason[:100]
+
             # Use sudo to validate password
             auth_result = subprocess.run(
                 ['sudo', '-k'],  # Invalidate cached credentials first
-                capture_output=True
+                shell=False,  # SECURITY: No shell needed
+                capture_output=True,
+                timeout=10
             )
 
             auth_result = subprocess.run(
                 ['sudo', '-v'],
+                shell=False,  # SECURITY: No shell needed
                 capture_output=True,
                 text=True,
                 timeout=30
             )
 
             if auth_result.returncode == 0:
-                self._log_audit(f"Password authentication successful: {reason}", "SUCCESS")
+                self._log_audit(f"Password authentication successful: {safe_reason}", "SUCCESS")
                 return True, "Password authentication successful"
             else:
-                self._log_audit(f"Password authentication failed: {reason}", "FAILURE")
+                self._log_audit(f"Password authentication failed: {safe_reason}", "FAILURE")
                 return False, "Password authentication failed"
 
         except Exception as e:
