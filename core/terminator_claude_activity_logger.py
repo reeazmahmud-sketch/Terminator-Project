@@ -78,7 +78,7 @@ class ClaudeActivityLogger:
 
     def __init__(self):
         """Initialize activity logger"""
-        self.project_root = Path("/Users/reeazmahmud/Desktop/Terminator-Project")
+        self.project_root = Path(".")
         self.log_dir = self.project_root / ".claude_activity"
         self.log_dir.mkdir(exist_ok=True)
 

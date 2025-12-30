@@ -146,7 +146,7 @@ class AgentCommunicationBus:
         self.event_handlers: Dict[str, List[Callable[[Message], Awaitable[None]]]] = defaultdict(list)
         self.agents: Dict[str, Any] = {}
 
-        self.storage_path = "/Users/reeazmahmud/Desktop/Terminator/communication/data"
+        self.storage_path = "communication/data"
         os.makedirs(self.storage_path, exist_ok=True)
         
         # Hybrid Bridge: Background Loop
