@@ -4,7 +4,6 @@ import asyncio
 import json
 import logging
 import secrets
-from pathlib import Path
 from datetime import datetime, timedelta
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Query
 from fastapi.staticfiles import StaticFiles
@@ -166,43 +165,6 @@ async def metrics_broadcaster():
             logger.error(f"Metrics broadcast error: {e}")
 
         await asyncio.sleep(2)  # 2-second interval
-
-# File System API Endpoint
-@app.get("/api/files")
-async def list_files(path: Optional[str] = Query(".")):
-    """
-    Lists files and directories at a given path.
-    Prevents directory traversal attacks.
-    """
-    try:
-        base_dir = Path(os.getcwd()).resolve()
-        requested_path = base_dir.joinpath(path).resolve()
-
-        # Security Check: Ensure the requested path is within the base directory
-        if not requested_path.is_relative_to(base_dir):
-            raise HTTPException(status_code=403, detail="Access denied: Path is outside the allowed directory.")
-
-        if not requested_path.exists() or not requested_path.is_dir():
-            raise HTTPException(status_code=404, detail="Path not found or is not a directory.")
-
-        items = []
-        for item in os.scandir(requested_path):
-            items.append({
-                "name": item.name,
-                "type": "directory" if item.is_dir() else "file",
-                "path": os.path.relpath(item.path, base_dir)
-            })
-
-        # Sort items: directories first, then by name
-        items.sort(key=lambda x: (x["type"], x["name"]))
-
-        return JSONResponse({
-            "path": os.path.relpath(requested_path, base_dir),
-            "files": items
-        })
-    except Exception as e:
-        logger.error(f"File listing error for path '{path}': {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to list files: {str(e)}")
 
 # SECURITY: Authentication Endpoint
 @app.post("/api/auth/session")

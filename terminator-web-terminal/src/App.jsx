@@ -3,7 +3,6 @@ import Terminal from './components/Terminal';
 import StatusPanel from './components/StatusPanel';
 import Header from './components/Header';
 import ArcReactor from './components/ArcReactor';
-import FileSystemBrowser from './components/FileSystemBrowser';
 import { useMetrics } from './hooks/useMetrics';
 import { motion } from 'framer-motion';
 
@@ -68,7 +67,6 @@ function App() {
           className="w-3/4 flex flex-col"
         >
           <Terminal websocket={ws.current} isConnected={isConnected} />
-          <FileSystemBrowser />
         </motion.div>
       </main>
       

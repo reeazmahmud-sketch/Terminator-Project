@@ -96,7 +96,7 @@ class ChangePropagationSystem:
 
     def __init__(self):
         """Initialize change propagation system"""
-        self.project_root = Path(".")
+        self.project_root = Path("/Users/reeazmahmud/Desktop/Terminator-Project")
         self.changes_dir = self.project_root / ".changes"
         self.changes_dir.mkdir(exist_ok=True)
 
