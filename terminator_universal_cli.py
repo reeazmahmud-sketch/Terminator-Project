@@ -21,6 +21,22 @@ import time
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 from datetime import datetime
+try:
+    from modules.core.module_loader import ModuleLoader
+except ImportError:
+    ModuleLoader = None
+
+# Add project root to path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+# Core imports
+try:
+    from core.terminator_secrets_manager import get_secrets_manager, SecretType
+    from core.terminator_llm_router import get_llm_router, LLMProvider
+    from core.terminator_auto_solution_agent import AutoSolutionAgent
+except ImportError:
+    # Fallback if core modules are missing during first run
+    pass
 
 # Try to import psutil for memory tracking
 try:
@@ -35,9 +51,6 @@ except ImportError:
         HAS_PSUTIL = True
     except:
         HAS_PSUTIL = False
-
-# Add project root to path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 try:
     from rich.console import Console
@@ -71,7 +84,118 @@ SESSION_START = time.time()
 
 # Ollama LLM Configuration
 OLLAMA_URL = "http://localhost:11434/api/chat"
-OLLAMA_MODEL = "ministral-3:14b"  # Default model (changed from llama3:latest)
+OLLAMA_MODEL = "ministral-3:14b"  # Default model
+
+# Cloud API Configuration
+CURRENT_PROVIDER = None
+CURRENT_MODEL = None
+
+# Cloud API Models
+CLOUD_MODELS = {
+    "gemini": "gemini-2.0-flash-exp",
+    "claude": "claude-3-5-sonnet-20241022",
+    "openai": "gpt-4o-mini",
+    "grok": "grok-2-latest",
+}
+
+def get_cloud_client(provider: str):
+    """Get the appropriate cloud client for the provider"""
+    secrets = get_secrets_manager()
+
+    if provider == "gemini":
+        api_key = secrets.get_secret(SecretType.GEMINI_API_KEY)
+        if api_key:
+            import google.generativeai as genai
+            genai.configure(api_key=api_key)
+            return genai.GenerativeModel(CLOUD_MODELS["gemini"])
+
+    elif provider == "claude":
+        api_key = secrets.get_secret(SecretType.ANTHROPIC_API_KEY)
+        if api_key:
+            try:
+                import anthropic
+                return anthropic.Anthropic(api_key=api_key)
+            except ImportError:
+                console.print("[yellow]Installing anthropic SDK...[/yellow]")
+                subprocess.run([sys.executable, "-m", "pip", "install", "anthropic"], capture_output=True)
+                import anthropic
+                return anthropic.Anthropic(api_key=api_key)
+
+    elif provider == "openai" or provider == "grok":
+        secret_type = SecretType.OPENAI_API_KEY if provider == "openai" else SecretType.GROK_API_KEY
+        api_key = secrets.get_secret(secret_type)
+        if api_key:
+            try:
+                import openai
+                base_url = "https://api.x.ai/v1" if provider == "grok" else None
+                return openai.OpenAI(api_key=api_key, base_url=base_url)
+            except ImportError:
+                console.print("[yellow]Installing openai SDK...[/yellow]")
+                subprocess.run([sys.executable, "-m", "pip", "install", "openai"], capture_output=True)
+                import openai
+                base_url = "https://api.x.ai/v1" if provider == "grok" else None
+                return openai.OpenAI(api_key=api_key, base_url=base_url)
+
+    return None
+
+def call_cloud_api(provider: str, messages: list, system_prompt: str = None) -> str:
+    """Call a cloud API and return the response"""
+    client = get_cloud_client(provider)
+    if not client:
+        return None
+
+    try:
+        if provider == "gemini":
+            prompt = "\n".join([
+                f"{m['role'].upper()}: {m['content']}"
+                for m in messages[-10:]
+            ])
+            if system_prompt:
+                prompt = f"SYSTEM: {system_prompt}\n\n{prompt}"
+            response = client.generate_content(prompt)
+            return response.text
+
+        elif provider == "claude":
+            response = client.messages.create(
+                model=CLOUD_MODELS["claude"],
+                max_tokens=2048,
+                system=system_prompt or "You are TERMINATOR, a helpful AI assistant.",
+                messages=messages[-10:]
+            )
+            return response.content[0].text
+
+        elif provider in ["openai", "grok"]:
+            msgs = messages[-10:]
+            if system_prompt:
+                msgs = [{"role": "system", "content": system_prompt}] + msgs
+            model = CLOUD_MODELS.get(provider, "gpt-4o-mini")
+            response = client.chat.completions.create(
+                model=model,
+                messages=msgs,
+                max_tokens=2048
+            )
+            return response.choices[0].message.content
+
+    except Exception as e:
+        console.print(f"[red]Cloud API error ({provider}): {e}[/red]")
+        return None
+
+    return None
+
+def detect_best_provider() -> str:
+    """Auto-detect the best available LLM provider"""
+    global CURRENT_PROVIDER
+    if CURRENT_PROVIDER:
+        return CURRENT_PROVIDER
+
+    secrets = get_secrets_manager()
+    provider = secrets.get_best_available_provider()
+
+    if provider:
+        CURRENT_PROVIDER = provider
+        return provider
+
+    return "ollama"  # Default fallback
 
 # =============================================================================
 # AGENTIC TOOLS SYSTEM - Claude Code-like capabilities for Terminator
@@ -459,8 +583,10 @@ class UniversalTerminatorCLI:
     """Universal TERMINATOR CLI with slash commands and multi-platform control"""
 
     def __init__(self):
-        self.project_root = Path(__file__).parent
-        self.terminator_root = Path.home() / "Desktop" / "Terminator-Project"
+        # Portable Root: Uses the directory containing this script
+        self.project_root = Path(__file__).resolve().parent
+        self.terminator_root = self.project_root
+        
         self.running = True
         self.connections = {
             "ios": None,
@@ -483,6 +609,14 @@ class UniversalTerminatorCLI:
         # Initialize agentic tools system
         self.tools = AgenticTools(self.terminator_root)
         self.agentic_mode = True  # Toggle with /agent command - DEFAULT ON for autonomous behavior
+
+        # Initialize new core components
+        try:
+            self.router = get_llm_router()
+            self.solution_agent = AutoSolutionAgent(str(self.terminator_root))
+        except NameError:
+            self.router = None
+            self.solution_agent = None
 
         # Context tracking (like Claude)
         self.context_tokens = 0
@@ -560,6 +694,16 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
             "/agentic-tools": self.cmd_agentic_tools,
             "/system": self.cmd_system,
 
+            "/solve": self.cmd_solve,
+            "/provider": self.cmd_provider,
+            "/resume": self.cmd_load,
+            "/chat": lambda args: console.print("[dim]Chat mode is default. Just type![/dim]"),
+            "/quit": self.cmd_exit,
+            "/directory": self.cmd_ls, # Alias
+            "/ide": self.cmd_open, # Alias
+            "/mcp": self.cmd_connect_mcp, # Alias
+            "/memory": self.cmd_context, # Alias
+
             # Session Commands
             "/settings": self.cmd_settings,
             "/clear": self.cmd_clear,
@@ -568,21 +712,19 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
             "/rate-limit-options": self.cmd_rate_limit_options,
             "/model": self.cmd_model,
             "/api-keys": self.cmd_api_keys,
-            "/context": self.cmd_context,
-            "/tokens": self.cmd_tokens,
-            "/budget": self.cmd_budget,
-            "/reset": self.cmd_reset,
-            "/history": self.cmd_history,
-            "/save": self.cmd_save,
-            "/load": self.cmd_load,
-            "/export": self.cmd_export,
-
-            # Core Commands
-            "/status": self.cmd_status,
+                        "/context": self.cmd_context,
+                        "/tokens": self.cmd_tokens,
+                        "/budget": self.cmd_budget,
+                                    "/open": self.cmd_open,
+                                    "/notebook": self.cmd_notebook,
+                                    "/editor-config": self.cmd_configure_editor,
+                        
+                                                            "/configure-editor": self.cmd_configure_editor,
+                                                # System Commands            "/status": self.cmd_status,
             "/healthCheck": self.cmd_health_check,
             "/agents": self.cmd_list_agents,
             "/tools": self.cmd_list_tools,
-            "/modules": self.cmd_list_modules,
+            "/modules": self.cmd_modules,
 
             # Platform Commands
             "/connectMCP": self.cmd_connect_mcp,
@@ -612,7 +754,19 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
             "/grep": self.cmd_grep,
             "/agent": self.cmd_agent_mode,
             "/auto": self.cmd_auto,
+            "/provider": self.cmd_provider,
+            "/solve": self.cmd_solve,
         }
+
+        # Module System (Initialize LAST to allow modules to see self.commands)
+        self.module_commands = {} # cmd -> module_name
+        if ModuleLoader:
+            self.module_loader = ModuleLoader(self)
+            # Auto-load discovered modules
+            for mod in self.module_loader.discover_modules():
+                self.module_loader.load_module(mod["name"])
+        else:
+            self.module_loader = None
 
     def load_settings(self) -> Dict:
         """Load CLI settings"""
@@ -667,17 +821,39 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
         return (self.context_tokens / self.max_context) * 100
 
     def call_llm_streaming(self, user_input: str):
-        """Call Ollama LLM with streaming response (Claude Code style)"""
-        import httpx
-        from rich.live import Live
-        from rich.text import Text
-        from rich.panel import Panel
-
+        """Call LLM with streaming response - uses hybrid logic (Ollama/Cloud)"""
         # Add user message to history
         self.messages.append({"role": "user", "content": user_input})
 
+        # Hybrid Logic: Detect if query needs internet
+        internet_keywords = ['search', 'website', 'url', 'http', 'online', 'current',
+                           'latest', 'news', 'today', 'weather', 'stock', 'price', 'google']
+        needs_internet = any(kw in user_input.lower() for kw in internet_keywords)
+
         full_response = ""
 
+        # Check for cloud provider if internet needed
+        if needs_internet and self.router:
+            provider = self.router.get_current_provider()
+            if provider != LLMProvider.OLLAMA:
+                console.print(f"[dim]Internet-requiring task detected. Using {provider.value} (Hybrid Logic)...[/dim]")
+                try:
+                    # Use router for cloud API
+                    response = self.router.chat_sync(
+                        user_input,
+                        system_prompt=AGENTIC_SYSTEM_PROMPT.format(project_path=self.tools.project_path)
+                    )
+                    if response.content:
+                        full_response = response.content
+                        self.display_response(full_response, truncate=False)
+                        self.messages.append({"role": "assistant", "content": full_response})
+                        self.check_and_execute_tools(full_response)
+                        return
+                except Exception as e:
+                    console.print(f"[yellow]Cloud API failed: {e}, falling back to Ollama...[/yellow]")
+
+        # Fallback to local Ollama (Free)
+        import httpx
         try:
             with httpx.Client(timeout=120.0) as client:
                 with client.stream(
@@ -694,7 +870,6 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
                         console.print(f"[red]Error: Ollama returned status {response.status_code}[/red]")
                         return
 
-                    # Stream response (collect all chunks first)
                     for line in response.iter_lines():
                         if line:
                             try:
@@ -703,37 +878,48 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
                                 chunk = data.get("message", {}).get("content", "")
                                 if chunk:
                                     full_response += chunk
-
-                                # Check if done
                                 if data.get("done", False):
                                     break
                             except:
                                 continue
 
-                    # Display full response in TERMINATOR theme panel
                     if full_response:
                         self.display_response(full_response, truncate=False)
 
-            # Add to history
             if full_response:
                 self.messages.append({"role": "assistant", "content": full_response})
-
-            # Check for tool calls in response
             self.check_and_execute_tools(full_response)
 
         except httpx.ConnectError:
             console.print("[red]Error: Cannot connect to Ollama. Run: ollama serve[/red]")
-        except httpx.TimeoutException:
-            console.print("[red]Error: Request timed out. Model may be loading.[/red]")
+            console.print("[dim]Tip: Set a cloud API key with /api-keys set gemini for Hybrid Logic[/dim]")
         except Exception as e:
             console.print(f"[red]Error: {str(e)}[/red]")
 
-    def call_llm(self, user_input: str) -> str:
-        """Call Ollama LLM and return response (non-streaming fallback)"""
-        import httpx
-
+    def call_llm(self, user_input: str, force_cloud: bool = False) -> str:
+        """Call LLM and return response - uses hybrid logic"""
         self.messages.append({"role": "user", "content": user_input})
 
+        internet_keywords = ['search', 'website', 'url', 'http', 'online', 'current',
+                           'latest', 'news', 'today', 'weather', 'stock', 'price', 'google']
+        needs_internet = force_cloud or any(kw in user_input.lower() for kw in internet_keywords)
+
+        if needs_internet and self.router:
+            provider = self.router.get_current_provider()
+            if provider != LLMProvider.OLLAMA:
+                try:
+                    response = self.router.chat_sync(
+                        user_input,
+                        system_prompt=AGENTIC_SYSTEM_PROMPT.format(project_path=self.tools.project_path)
+                    )
+                    if response.content:
+                        self.messages.append({"role": "assistant", "content": response.content})
+                        return response.content
+                except Exception as e:
+                    console.print(f"[yellow]Cloud API error: {e}, falling back to Ollama...[/yellow]")
+
+        # Fallback to local Ollama
+        import httpx
         try:
             with httpx.Client(timeout=60.0) as client:
                 response = client.post(
@@ -754,9 +940,7 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
                     return f"Error: Ollama returned status {response.status_code}"
 
         except httpx.ConnectError:
-            return "Error: Cannot connect to Ollama. Run: ollama serve"
-        except httpx.TimeoutException:
-            return "Error: Request timed out."
+            return "Error: Cannot connect to Ollama. Run: ollama serve\nTip: /api-keys set gemini for cloud fallback"
         except Exception as e:
             return f"Error: {str(e)}"
 
@@ -844,11 +1028,15 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
         status_table.add_column(style="white")
 
         # LLM Backend
-        llm_status = f"[green]●[/green] {OLLAMA_MODEL}"
+        if self.router:
+            provider = self.router.get_current_provider()
+            llm_status = f"[green]●[/green] {OLLAMA_MODEL} [dim]+ {provider.value.upper()} (Hybrid Logic)[/dim]"
+        else:
+            llm_status = f"[green]●[/green] {OLLAMA_MODEL}"
         status_table.add_row("LLM Model:", llm_status)
 
         # Capabilities
-        capabilities = "[green]✓[/green] Autonomous | [green]✓[/green] Meta-Cognition | [green]✓[/green] Learning"
+        capabilities = "[green]✓[/green] Hybrid Logic | [green]✓[/green] Auto-Solution | [green]✓[/green] Learning"
         status_table.add_row("Capabilities:", capabilities)
 
         # Tools Available
@@ -921,6 +1109,7 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
         table.add_column("Description", width=45)
 
         table.add_row("/model", "List & switch models (Ollama + API)")
+        table.add_row("/provider", "Switch LLM providers (Hybrid Logic)")
         table.add_row("/api-keys", "Manage API keys (Claude, Gemini, etc)")
         table.add_row("/context", "Show context usage")
         table.add_row("/tokens", "Show token statistics")
@@ -982,6 +1171,7 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
         table.add_row("/grep <pattern> [file]", "Search for text in files")
         table.add_row("/agent", "Toggle agentic mode")
         table.add_row("/auto <task>", "Run autonomous task")
+        table.add_row("/solve <problem>", "Solve coding problem iteratively")
 
         console.print(table)
         console.print()
@@ -1438,57 +1628,97 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
 
         console.print(f"\n[dim]Total: {len(tools)} tool categories[/dim]")
 
-    def cmd_list_modules(self, args: List[str] = None):
-        """List all core system modules"""
-        console.print("\n[bold cyan]📦 TERMINATOR Core Modules[/bold cyan]\n")
+    def cmd_modules(self, args: List[str] = None):
+        """Manage system modules (Core & Dynamic)"""
+        if not args:
+            console.print("\n[bold cyan]📦 Terminator Module System[/bold cyan]\n")
+            console.print("Usage:")
+            console.print("  /modules list            - List all modules")
+            console.print("  /modules load <name>     - Load a dynamic module")
+            console.print("  /modules unload <name>   - Unload a module")
+            console.print("  /modules reload          - Reload all modules")
+            console.print("  /modules scan            - Scan for new modules")
+            return
 
-        core_dir = self.project_root / "core"
+        subcmd = args[0].lower()
 
-        # Categorize modules
-        categories = {
-            "Orchestration": [],
-            "Agents": [],
-            "Systems": [],
-            "Utilities": []
-        }
-
-        if core_dir.exists():
-            for file in sorted(core_dir.glob("*.py")):
-                name = file.stem
-                if name.startswith("__"):
-                    continue
-
-                # Categorize based on name
-                if "orchestrat" in name or "decision" in name:
-                    categories["Orchestration"].append(name)
-                elif "agent" in name:
-                    categories["Agents"].append(name)
-                elif "system" in name or "manager" in name or "coordinator" in name:
-                    categories["Systems"].append(name)
-                else:
-                    categories["Utilities"].append(name)
-
-        # Display by category
-        for category, modules in categories.items():
-            if modules:
-                table = Table(title=f"{category}", style="cyan", show_header=False)
-                table.add_column("Module", style="yellow", width=45)
-                table.add_column("Type", width=20)
-
-                for mod in modules[:10]:  # Limit display
-                    mod_type = "Core" if "terminator" in mod else "Support"
-                    display_name = mod.replace("terminator_", "").replace("_", " ").title()
-                    table.add_row(display_name, mod_type)
-
-                if len(modules) > 10:
-                    table.add_row(f"... and {len(modules) - 10} more", "")
-
+        if subcmd == "list":
+            # 1. Dynamic Modules
+            if self.module_loader:
+                loaded = self.module_loader.loaded_modules
+                available = self.module_loader.discover_modules()
+                
+                table = Table(title="Dynamic Modules (User Scripts)", style="cyan")
+                table.add_column("Name", style="yellow")
+                table.add_column("Status", width=10)
+                table.add_column("Type", width=10)
+                table.add_column("Path", style="dim")
+                
+                # Merge lists
+                all_names = set(loaded.keys()) | {m["name"] for m in available}
+                
+                for name in sorted(all_names):
+                    status = "[green]Active[/green]" if name in loaded else "[dim]Available[/dim]"
+                    
+                    # Get details
+                    mod_type = "?"
+                    path = ""
+                    if name in loaded:
+                        mod_type = loaded[name]["type"]
+                        path = str(loaded[name]["path"])
+                    else:
+                        info = next((m for m in available if m["name"] == name), {})
+                        mod_type = info.get("type", "?")
+                        path = str(info.get("path", ""))
+                    
+                    table.add_row(name, status, mod_type, Path(path).name)
+                
                 console.print(table)
                 console.print()
 
-        # Total count
-        total = sum(len(m) for m in categories.values())
-        console.print(f"[dim]Total: {total} modules in /core[/dim]\n")
+            # 2. Core Modules (Legacy view)
+            console.print("[dim]Use /modules list core to see system components[/dim]")
+            if len(args) > 1 and args[1] == "core":
+                self._list_core_modules()
+
+        elif subcmd == "load" and len(args) > 1:
+            name = args[1]
+            if self.module_loader and self.module_loader.load_module(name):
+                console.print(f"[green]✅ Module '{name}' loaded successfully[/green]")
+            else:
+                console.print(f"[red]❌ Failed to load module '{name}'[/red]")
+
+        elif subcmd == "unload" and len(args) > 1:
+            name = args[1]
+            if self.module_loader:
+                self.module_loader.unload_module(name)
+                console.print(f"[green]✅ Module '{name}' unloaded[/green]")
+
+        elif subcmd == "reload":
+            if self.module_loader:
+                self.module_loader.reload_all()
+                console.print("[green]♻️  All modules reloaded[/green]")
+
+        elif subcmd == "scan":
+            if self.module_loader:
+                found = self.module_loader.discover_modules()
+                console.print(f"[green]🔍 Scanned {len(found)} available modules[/green]")
+        
+        else:
+            console.print(f"[red]Unknown subcommand: {subcmd}[/red]")
+
+    def _list_core_modules(self):
+        """Helper to list core system files"""
+        console.print("\n[bold cyan]🧠 Core System Components[/bold cyan]\n")
+        core_dir = self.project_root / "core"
+        if not core_dir.exists(): return
+        
+        table = Table(show_header=False, box=None)
+        table.add_column("Module")
+        for file in sorted(core_dir.glob("*.py")):
+            if not file.name.startswith("__"):
+                table.add_row(f"• {file.stem}")
+        console.print(table)
 
     def cmd_view_logs(self, args: List[str] = None):
         """View system logs"""
@@ -1519,6 +1749,188 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
         console.print(table)
         console.print("\n[dim]Edit: ~/.terminator_cli_settings.json[/dim]")
 
+    def cmd_open(self, args: List[str] = None):
+        """Open a file or project in the configured editor/IDE"""
+        if not args:
+            console.print("[red]Usage: /open <file_or_dir_path>[/red]")
+            return
+
+        target_path = args[0]
+        path_obj = Path(target_path).resolve()
+
+        if not path_obj.exists():
+            console.print(f"[red]❌ Path not found: {target_path}[/red]")
+            return
+
+        # --- DIRECTORY / PROJECT MODE ---
+        if path_obj.is_dir():
+            console.print(f"[cyan]📂 Detecting project type for: {path_obj.name}[/cyan]")
+            
+            # 1. Xcode Project Detection
+            if list(path_obj.glob("*.xcworkspace")):
+                ws = list(path_obj.glob("*.xcworkspace"))[0]
+                console.print(f"[green]🚀 Detected Xcode Workspace. Opening {ws.name}...[/green]")
+                subprocess.Popen(["open", str(ws)])
+                return
+            elif list(path_obj.glob("*.xcodeproj")):
+                proj = list(path_obj.glob("*.xcodeproj"))[0]
+                console.print(f"[green]🚀 Detected Xcode Project. Opening {proj.name}...[/green]")
+                subprocess.Popen(["open", str(proj)])
+                return
+            elif (path_obj / "Package.swift").exists():
+                console.print(f"[green]🚀 Detected Swift Package. Opening in Xcode...[/green]")
+                subprocess.Popen(["open", str(path_obj / "Package.swift")])
+                return
+
+            # 2. General Project Detection (VS Code / Zed / Windsurf / Trae)
+            # Default to VS Code ('code') if not configured
+            default_editor = self.settings.get("default_editor", "code")
+            
+            console.print(f"[green]🚀 Opening directory with {default_editor}...[/green]")
+            try:
+                subprocess.Popen([default_editor, str(path_obj)])
+            except Exception as e:
+                console.print(f"[red]❌ Failed to launch {default_editor}: {e}[/red]")
+                console.print("[dim]Try configuring with: /configure-editor default <cmd>[/dim]")
+            return
+
+        # --- FILE MODE ---
+        ext = path_obj.suffix.lower()
+        
+        # Extended default mappings
+        default_mappings = {
+            ".py": "code",
+            ".js": "code", ".ts": "code", ".jsx": "code", ".tsx": "code",
+            ".java": "idea",
+            ".kt": "idea",
+            ".swift": "open -a Xcode", 
+            ".m": "open -a Xcode", ".h": "open -a Xcode", ".mm": "open -a Xcode",
+            ".c": "code", ".cpp": "code",
+            ".rs": "zed",  # Rust -> Zed
+            ".md": "view",
+            ".txt": "open",
+            ".json": "code",
+            ".yml": "code", ".yaml": "code"
+        }
+        
+        # Load user config, merging with defaults
+        user_mappings = self.settings.get("editor_mappings", {})
+        
+        # Check user config first, then default
+        editor_cmd = user_mappings.get(ext, default_mappings.get(ext, "open"))
+
+        if ext == ".md" and editor_cmd == "view":
+            try:
+                with open(path_obj, "r") as f:
+                    content = f.read()
+                console.print(Markdown(content))
+                return
+            except Exception as e:
+                console.print(f"[red]Error reading markdown: {e}[/red]")
+                return
+
+        console.print(f"[green]🚀 Opening {path_obj.name} with {editor_cmd}...[/green]")
+        try:
+            # Handle complex commands (e.g., "open -a Xcode")
+            import shlex
+            cmd_parts = shlex.split(editor_cmd) + [str(path_obj)]
+            subprocess.Popen(cmd_parts)
+        except Exception as e:
+            console.print(f"[red]❌ Failed to launch editor: {e}[/red]")
+
+    def cmd_configure_editor(self, args: List[str] = None):
+        """Configure IDE/Editor integrations"""
+        if not args:
+            console.print("\n[bold cyan]🛠️ IDE & Editor Configuration[/bold cyan]\n")
+            console.print("Commands:")
+            console.print("  list                       - Show current mappings")
+            console.print("  set <ext> <cmd>            - Map file extension")
+            console.print("  default <cmd>              - Set default editor for folders")
+            console.print("  preset <name>              - Apply bulk settings")
+            console.print("  remove <ext>               - Remove a mapping")
+            console.print("\nPresets:")
+            console.print("  xcode     - Map Swift/ObjC/C++ to Xcode")
+            console.print("  vscode    - Map Web/Python/JS to VS Code")
+            console.print("  zed       - Map Rust/Go/Web to Zed")
+            console.print("  windsurf  - Map everything to Windsurf")
+            console.print("  nova      - Map Web/Mac to Nova")
+            console.print("  trae      - Map everything to Trae")
+            return
+
+        subcmd = args[0].lower()
+        
+        # Ensure config structures exist
+        if "editor_mappings" not in self.settings:
+            self.settings["editor_mappings"] = {}
+
+        if subcmd == "list":
+            console.print(f"[bold]Default Dir Editor:[/bold] {self.settings.get('default_editor', 'code')}")
+            table = Table(title="File Type Mappings")
+            table.add_column("Extension", style="cyan")
+            table.add_column("Editor/Command", style="green")
+            
+            for ext, cmd in self.settings.get("editor_mappings", {}).items():
+                table.add_row(ext, cmd)
+            console.print(table)
+
+        elif subcmd == "default" and len(args) >= 2:
+            self.settings["default_editor"] = args[1]
+            self.save_settings()
+            console.print(f"[green]✅ Default folder editor set to: {args[1]}[/green]")
+
+        elif subcmd == "set" and len(args) >= 3:
+            ext = args[1]
+            if not ext.startswith("."): ext = "." + ext
+            cmd = " ".join(args[2:])
+            self.settings["editor_mappings"][ext] = cmd
+            self.save_settings()
+            console.print(f"[green]✅ Mapped {ext} to '{cmd}'[/green]")
+
+        elif subcmd == "preset" and len(args) >= 2:
+            preset = args[1].lower()
+            changes = 0
+            if preset == "xcode":
+                mappings = {".swift": "open -a Xcode", ".m": "open -a Xcode", ".h": "open -a Xcode", ".cpp": "open -a Xcode"}
+                self.settings["default_editor"] = "open -a Xcode"
+            elif preset == "vscode":
+                mappings = {".py": "code", ".js": "code", ".ts": "code", ".html": "code", ".css": "code"}
+                self.settings["default_editor"] = "code"
+            elif preset == "zed":
+                mappings = {".rs": "zed", ".go": "zed", ".ts": "zed", ".py": "zed"}
+                self.settings["default_editor"] = "zed"
+            elif preset == "windsurf":
+                mappings = {".py": "windsurf", ".js": "windsurf", ".ts": "windsurf"}
+                self.settings["default_editor"] = "windsurf"
+            elif preset == "trae":
+                mappings = {".py": "trae", ".js": "trae"}
+                self.settings["default_editor"] = "trae"
+            elif preset == "nova":
+                mappings = {".html": "nova", ".css": "nova", ".js": "nova", ".php": "nova"}
+                self.settings["default_editor"] = "nova"
+            else:
+                console.print(f"[red]Unknown preset: {preset}[/red]")
+                return
+
+            for ext, cmd in mappings.items():
+                self.settings["editor_mappings"][ext] = cmd
+                changes += 1
+            
+            self.save_settings()
+            console.print(f"[green]✅ Applied '{preset}' preset ({changes} mappings updated)[/green]")
+
+        elif subcmd == "remove" and len(args) >= 2:
+            ext = args[1]
+            if not ext.startswith("."): ext = "." + ext
+            if ext in self.settings["editor_mappings"]:
+                del self.settings["editor_mappings"][ext]
+                self.save_settings()
+                console.print(f"[green]✅ Removed mapping for {ext}[/green]")
+            else:
+                console.print(f"[yellow]⚠ No mapping found for {ext}[/yellow]")
+        
+        else:
+            console.print("[red]Invalid arguments.[/red]")
+
     def cmd_clear(self, args: List[str] = None):
         """Clear terminal screen"""
         os.system('clear' if os.name != 'nt' else 'cls')
@@ -1537,8 +1949,8 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
         console.print("\n[bold green]UNLIMITED[/bold green] - Local Ollama\n")
         console.print(f"  Requests this session: {self.requests_today}")
         console.print(f"  Model: {OLLAMA_MODEL}")
-        console.print(f"  Rate Limits: None")
-        console.print(f"  Cost: $0")
+        console.print("  Rate Limits: None")
+        console.print("  Cost: $0")
         console.print("\n[dim]Local LLM = no limits![/dim]")
 
     def get_ollama_models(self) -> List[Dict[str, Any]]:
@@ -1743,9 +2155,9 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
                 key = secrets_manager.get_secret(secret_type)
                 if key:
                     masked_key = f"{key[:8]}...{key[-4:]}" if len(key) > 12 else "***"
-                    table.add_row(provider, f"[green]✓ Set[/green]", f"Key: {masked_key}")
+                    table.add_row(provider, "[green]✓ Set[/green]", f"Key: {masked_key}")
                 else:
-                    table.add_row(provider, f"[red]✗ Not Set[/red]", f"/api-keys set {provider.lower()}")
+                    table.add_row(provider, "[red]✗ Not Set[/red]", f"/api-keys set {provider.lower()}")
 
             console.print(table)
             console.print("\n[dim]Usage:[/dim]")
@@ -1799,9 +2211,177 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
         else:
             console.print("[yellow]Usage: /api-keys [set|remove] <provider>[/yellow]\n")
 
-    # =========================================================================
-    # AGENTIC TOOL COMMANDS - Claude Code-like capabilities
-    # =========================================================================
+    def cmd_provider(self, args: List[str] = None):
+        """Show or change the preferred LLM provider"""
+        if not self.router:
+            console.print("[red]LLM Router not initialized.[/red]")
+            return
+
+        current = self.router.get_current_provider()
+
+        if not args:
+            console.print("\n[bold cyan]📡 LLM Provider Status[/bold cyan]\n")
+            
+            # Show hybrid logic status
+            console.print(f"  Hybrid Logic: [green]ENABLED[/green]")
+            console.print(f"  Current Active: [bold yellow]{current.value.upper()}[/bold yellow]")
+            console.print(f"  Default Fallback: [bold cyan]OLLAMA (Free)[/bold cyan]")
+            
+            # Show available providers
+            table = Table(title="Available Providers", box=ROUNDED)
+            table.add_column("Provider", style="cyan")
+            table.add_column("Status", style="green")
+            
+            secrets = get_secrets_manager()
+            for p in LLMProvider:
+                status = "[green]✓ Ready[/green]" if p == LLMProvider.OLLAMA else ""
+                if not status:
+                    from core.terminator_secrets_manager import SecretType
+                    # Map enum to secret type
+                    st = None
+                    if p == LLMProvider.GEMINI: st = SecretType.GEMINI_API_KEY
+                    elif p == LLMProvider.CLAUDE: st = SecretType.ANTHROPIC_API_KEY
+                    elif p == LLMProvider.OPENAI: st = SecretType.OPENAI_API_KEY
+                    elif p == LLMProvider.GROK: st = SecretType.GROK_API_KEY
+                    
+                    if st and secrets.get_secret(st):
+                        status = "[green]✓ Configured[/green]"
+                    else:
+                        status = "[dim]✗ Not Configured[/dim]"
+                
+                name = p.value.upper()
+                if p == current:
+                    table.add_row(f"[bold yellow]{name} (ACTIVE)[/bold yellow]", status)
+                else:
+                    table.add_row(name, status)
+            
+            console.print(table)
+            console.print("\n[dim]Usage: /provider <name> - Force a specific provider[/dim]")
+            console.print("[dim]Example: /provider gemini[/dim]\n")
+        else:
+            new_p_name = args[0].lower()
+            try:
+                new_p = LLMProvider(new_p_name)
+                self.router.preferred_provider = new_p
+                self.router._provider = None # Reset cached provider
+                console.print(f"\n[green]✅ Preferred provider set to: {new_p_name.upper()}[/green]\n")
+            except ValueError:
+                console.print(f"[red]Invalid provider: {new_p_name}[/red]")
+                console.print(f"[dim]Available: {', '.join([p.value for p in LLMProvider])}[/dim]\n")
+
+    def cmd_notebook(self, args: List[str] = None):
+        """
+        NotebookLLM-style local code analysis and generation.
+        Features: Source management, Summary, Podcast script, Deep Dive.
+        """
+        # Ensure notebook state
+        if not hasattr(self, "notebook_sources"):
+            self.notebook_sources = []
+
+        if not args:
+            console.print("\n[bold cyan]📓 Local NotebookLLM[/bold cyan]\n")
+            console.print("Manage sources and generate insights using Local LLM.\n")
+            console.print("Usage:")
+            console.print("  /notebook add <file>       - Add source file")
+            console.print("  /notebook list             - List sources")
+            console.print("  /notebook clear            - Clear sources")
+            console.print("  /notebook summary          - Generate overview")
+            console.print("  /notebook podcast          - Generate podcast script")
+            console.print("  /notebook analyze <query>  - Deep dive analysis")
+            return
+
+        subcmd = args[0].lower()
+
+        if subcmd == "add":
+            if len(args) < 2:
+                console.print("[red]Usage: /notebook add <file_path>[/red]")
+                return
+            
+            path_str = args[1]
+            path = self.tools.resolve_path(path_str)
+            
+            if path.exists() and path.is_file():
+                if str(path) not in self.notebook_sources:
+                    self.notebook_sources.append(str(path))
+                    console.print(f"[green]✅ Added source:[/green] {path.name}")
+                else:
+                    console.print(f"[yellow]⚠ Already in notebook:[/yellow] {path.name}")
+            else:
+                console.print(f"[red]❌ File not found:[/red] {path_str}")
+
+        elif subcmd == "list":
+            console.print(f"\n[bold]Notebook Sources ({len(self.notebook_sources)}):[/bold]")
+            if not self.notebook_sources:
+                console.print("[dim]No sources added.[/dim]")
+            for src in self.notebook_sources:
+                console.print(f"  • {Path(src).name} [dim]({src})[/dim]")
+            console.print()
+
+        elif subcmd == "clear":
+            self.notebook_sources = []
+            console.print("[green]✅ Notebook cleared.[/green]")
+
+        elif subcmd in ["summary", "podcast", "analyze"]:
+            if not self.notebook_sources:
+                console.print("[red]❌ No sources added. Add files first.[/red]")
+                return
+
+            console.print(f"[cyan]🧠 Ingesting {len(self.notebook_sources)} sources...[/cyan]")
+            
+            # Aggregate content
+            context_content = ""
+            total_lines = 0
+            for src in self.notebook_sources:
+                try:
+                    p = Path(src)
+                    content = p.read_text(errors='replace')
+                    context_content += f"\n--- FILE: {p.name} ---\n{content}\n"
+                    total_lines += len(content.splitlines())
+                except Exception as e:
+                    console.print(f"[red]Error reading {src}: {e}[/red]")
+
+            console.print(f"[dim]Context size: {total_lines} lines. Sending to {OLLAMA_MODEL}...[/dim]\n")
+
+            prompt = ""
+            if subcmd == "summary":
+                prompt = (
+                    "Analyze the provided code/documents. "
+                    "Provide a comprehensive summary including: "
+                    "1. Core Purpose "
+                    "2. Key Components/Architecture "
+                    "3. Main Functionality "
+                    "4. Tech Stack/Patterns used."
+                )
+            elif subcmd == "podcast":
+                prompt = (
+                    "Generate a 'NotebookLLM-style' audio script. "
+                    "Create a dialogue between two AI hosts (Host A and Host B) "
+                    "discussing these files. Make it engaging, insightful, and accessible. "
+                    "Use analogies. Host A introduces the topic, Host B asks deep questions. "
+                    "Focus on the 'why' and 'how' of the code."
+                )
+            elif subcmd == "analyze":
+                query = " ".join(args[1:]) if len(args) > 1 else "Explain the logic."
+                prompt = f"Analyze the provided context and answer this request: {query}"
+
+            full_prompt = f"CONTEXT:\n{context_content}\n\nTASK:\n{prompt}"
+            
+            # Call LLM (using non-streaming to capture full response easily, or existing streaming method)
+            # Re-using existing call_llm logic by sending as user message
+            
+            # Temporarily inject context into conversation for this turn
+            self.display_user_message(f"/notebook {subcmd}")
+            
+            messages = [
+                {"role": "system", "content": "You are a helpful AI analyst."},
+                {"role": "user", "content": full_prompt}
+            ]
+            
+            # Use streaming
+            self.call_llm_streaming(full_prompt) # This uses self.messages, might need adjustment
+
+        else:
+            console.print(f"[red]Unknown subcommand: {subcmd}[/red]")
 
     def cmd_project(self, args: List[str] = None):
         """Set or show current project directory"""
@@ -1950,6 +2530,77 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
             console.print(f"[red]❌ cmd_auto Error: {e}[/red]")
             console.print(f"[dim red]{traceback.format_exc()}[/dim red]")
 
+    def cmd_solve(self, args: List[str] = None):
+        """Solve a coding problem autonomously using AutoSolutionAgent"""
+        if not self.solution_agent:
+            console.print("[red]AutoSolutionAgent not initialized.[/red]")
+            return
+
+        if not args:
+            console.print("\n[bold cyan]🚀 Auto-Solution Engine[/bold cyan]\n")
+            console.print("Usage: /solve <problem description> [--test <command>]")
+            console.print("\nExamples:")
+            console.print("  /solve fix the bug in login.py")
+            console.print("  /solve create a new flask route --test 'pytest tests/test_routes.py'")
+            console.print("\n[dim]This invokes the specialized iterative coding agent.[/dim]\n")
+            return
+
+        # Parse args for --test
+        input_str = " ".join(args)
+        test_command = None
+        if " --test " in input_str:
+            problem, test_command = input_str.split(" --test ", 1)
+        else:
+            problem = input_str
+
+        console.print(f"\n🧠 [bold cyan]Auto-Solving Coding Problem:[/bold cyan] {problem}")
+        if test_command:
+            console.print(f"🧪 [bold yellow]Test Command:[/bold yellow] {test_command}")
+        console.print(f"📂 [dim]Project: {self.tools.project_path}[/dim]\n")
+
+        # Run async in sync context
+        try:
+            from rich.progress import Progress, SpinnerColumn, TextColumn
+            
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console
+            ) as progress:
+                solve_task = progress.add_task("[cyan]Thinking...", total=None)
+                
+                # Update project path for agent
+                self.solution_agent.project_path = Path(self.tools.project_path)
+                
+                # Run the solve loop
+                # Since this CLI is synchronous, we run the async solve here
+                result = asyncio.run(self.solution_agent.solve(problem, test_command))
+                
+                progress.update(solve_task, description="[green]Complete!")
+
+            # Display Result
+            console.print("\n" + "=" * 60)
+            console.print("[bold green]SOLUTIONS SUMMARY[/bold green]")
+            console.print("=" * 60)
+            console.print(f"Success: {'[green]✓ YES[/green]' if result['success'] else '[red]✗ NO[/red]'}")
+            console.print(f"Confidence: {result['confidence']:.2f}")
+            console.print(f"Iterations: {result['iterations']}")
+            console.print(f"Files Modified: {', '.join(result['files_modified']) if result['files_modified'] else 'None'}")
+            
+            console.print("\n[bold white]Explanation:[/bold white]")
+            console.print(Panel(result['solution'], style="white"))
+            
+            if result['reasoning_log']:
+                if Prompt.ask("\nShow reasoning log?", choices=["y", "n"], default="n") == "y":
+                    console.print("\n[dim]Reasoning Log:[/dim]")
+                    for log_entry in result['reasoning_log']:
+                        console.print(f"  {log_entry}")
+
+        except Exception as e:
+            console.print(f"\n[red]❌ Solution Agent failed: {e}[/red]")
+            import traceback
+            console.print(f"[dim red]{traceback.format_exc()}[/dim red]")
+
     def run_agentic_task(self, task: str, max_iterations: int = 10):
         """Run an autonomous task with tool calling"""
         import re
@@ -1962,96 +2613,82 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
             iteration += 1
             console.print(f"[dim]─── Iteration {iteration}/{max_iterations} ───[/dim]")
 
-            # Call LLM
-            self.messages.append({"role": "user", "content": current_message})
-
+            # Call LLM using hybrid logic
             try:
-                with httpx.Client(timeout=120.0) as client:
-                    response = client.post(
-                        OLLAMA_URL,
-                        json={
-                            "model": OLLAMA_MODEL,
-                            "messages": self.messages[-20:],  # Keep context manageable
-                            "stream": False,
-                            "options": {"temperature": 0.3, "num_predict": 2000}
-                        }
-                    )
+                # Use call_llm which already handles hybrid logic (Ollama vs Cloud)
+                assistant_message = self.call_llm(current_message)
 
-                    if response.status_code != 200:
-                        console.print(f"[red]LLM Error: {response.status_code}[/red]")
+                if "Error:" in assistant_message:
+                    console.print(f"[red]LLM Error: {assistant_message}[/red]")
+                    break
+
+                # Display response with rich formatting
+                self.display_response(assistant_message, truncate=False)
+
+                # Check for tool calls - flexible extraction
+                def extract_json_objects(text):
+                    """Extract all valid JSON objects containing 'tool' key"""
+                    objects = []
+                    i = 0
+                    while i < len(text):
+                        if text[i] == '{':
+                            count = 0
+                            start = i
+                            for j in range(i, len(text)):
+                                if text[j] == '{':
+                                    count += 1
+                                elif text[j] == '}':
+                                    count -= 1
+                                    if count == 0:
+                                        candidate = text[start:j+1]
+                                        if '"tool"' in candidate:
+                                            objects.append(candidate)
+                                        i = j
+                                        break
+                        i += 1
+                    return objects
+
+                # Try both: explicit <tool_call> tags and raw JSON
+                tool_json_candidates = []
+
+                # First try explicit tags
+                tool_pattern = r'</?tool_call>\s*([\s\S]*?)\s*</?tool_call>'
+                tag_matches = re.findall(tool_pattern, assistant_message)
+                for match in tag_matches:
+                    tool_json_candidates.extend(extract_json_objects(match))
+
+                # Also try raw JSON in response
+                if not tool_json_candidates:
+                    tool_json_candidates = extract_json_objects(assistant_message)
+
+                if tool_json_candidates:
+                    for cleaned_json in tool_json_candidates:
+                        try:
+                            tool_call = json.loads(cleaned_json)
+                            tool_name = tool_call.get("tool", "")
+                            params = tool_call.get("params", {})
+
+                            console.print(f"\n[yellow]🔧 Tool:[/yellow] {tool_name}")
+                            console.print(f"[dim]Params: {params}[/dim]")
+
+                            # Execute tool
+                            result = self.tools.execute_tool(tool_name, params)
+                            console.print(f"[green]Result:[/green] {result[:500]}{'...' if len(result) > 500 else ''}\n")
+
+                            # Feed result back to LLM
+                            current_message = f"Tool result:\n{result}\n\nContinue with the task or explain what you did."
+
+                        except json.JSONDecodeError as e:
+                            console.print(f"[red]Invalid tool JSON: {e}[/red]")
+                            current_message = f"Error parsing tool call: {e}. Please try again with valid JSON."
+                else:
+                    # No tool call - check if task is complete
+                    if any(phrase in assistant_message.lower() for phrase in ["task complete", "done", "finished", "completed the task"]):
+                        console.print("\n[green]✅ Task completed![/green]\n")
                         break
-
-                    assistant_message = response.json().get("message", {}).get("content", "")
-                    self.messages.append({"role": "assistant", "content": assistant_message})
-
-                    # Display response with rich formatting
-                    self.display_response(assistant_message, truncate=False)
-
-                    # Check for tool calls - flexible extraction
-                    # Helper function to extract balanced JSON
-                    def extract_json_objects(text):
-                        """Extract all valid JSON objects containing 'tool' key"""
-                        objects = []
-                        i = 0
-                        while i < len(text):
-                            if text[i] == '{':
-                                count = 0
-                                start = i
-                                for j in range(i, len(text)):
-                                    if text[j] == '{':
-                                        count += 1
-                                    elif text[j] == '}':
-                                        count -= 1
-                                        if count == 0:
-                                            candidate = text[start:j+1]
-                                            if '"tool"' in candidate:
-                                                objects.append(candidate)
-                                            i = j
-                                            break
-                            i += 1
-                        return objects
-
-                    # Try both: explicit <tool_call> tags and raw JSON
-                    tool_json_candidates = []
-
-                    # First try explicit tags
-                    tool_pattern = r'</?tool_call>\s*([\s\S]*?)\s*</?tool_call>'
-                    tag_matches = re.findall(tool_pattern, assistant_message)
-                    for match in tag_matches:
-                        tool_json_candidates.extend(extract_json_objects(match))
-
-                    # Also try raw JSON in response
-                    if not tool_json_candidates:
-                        tool_json_candidates = extract_json_objects(assistant_message)
-
-                    if tool_json_candidates:
-                        for cleaned_json in tool_json_candidates:
-                            try:
-                                tool_call = json.loads(cleaned_json)
-                                tool_name = tool_call.get("tool", "")
-                                params = tool_call.get("params", {})
-
-                                console.print(f"\n[yellow]🔧 Tool:[/yellow] {tool_name}")
-                                console.print(f"[dim]Params: {params}[/dim]")
-
-                                # Execute tool
-                                result = self.tools.execute_tool(tool_name, params)
-                                console.print(f"[green]Result:[/green] {result[:500]}{'...' if len(result) > 500 else ''}\n")
-
-                                # Feed result back to LLM
-                                current_message = f"Tool result:\n{result}\n\nContinue with the task or explain what you did."
-
-                            except json.JSONDecodeError as e:
-                                console.print(f"[red]Invalid tool JSON: {e}[/red]")
-                                current_message = f"Error parsing tool call: {e}. Please try again with valid JSON."
                     else:
-                        # No tool call - check if task is complete
-                        if any(phrase in assistant_message.lower() for phrase in ["task complete", "done", "finished", "completed the task"]):
-                            console.print("\n[green]✅ Task completed![/green]\n")
-                            break
-                        else:
-                            # Ask for continuation or completion
-                            current_message = "Continue with the task. If you're done, say 'Task complete'."
+                        # Ask for continuation or completion
+                        current_message = "Continue with the task. If you're done, say 'Task complete'."
 
             except httpx.TimeoutException:
                 console.print("[red]Request timed out[/red]")
@@ -2106,8 +2743,8 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
         console.print("\n[bold green]UNLIMITED[/bold green] - No Budget Limits\n")
         console.print(f"  Tokens this session: {self.tokens_today:,}")
         console.print(f"  Requests this session: {self.requests_today}")
-        console.print(f"  Daily limit: None")
-        console.print(f"  Cost: $0")
+        console.print("  Daily limit: None")
+        console.print("  Cost: $0")
         console.print()
 
     def cmd_reset(self, args: List[str] = None):
@@ -2156,14 +2793,134 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
 
         console.print(f"\n[green]✅ Conversation saved as:[/green] {save_name}\n")
 
-    def cmd_load(self, args: List[str] = None):
-        """Load a saved conversation"""
+    def cmd_solve(self, args: List[str] = None):
+        """Auto-solve a coding problem (AutoSolutionAgent)"""
         if not args:
-            console.print("\n[red]❌ Usage:[/red] /load <conversation_name>\n")
+            console.print("[yellow]Usage: /solve <problem_description>[/yellow]")
+            return
+        
+        problem = " ".join(args)
+        console.print(f"\n[bold cyan]🤖 Starting Auto-Solution Agent[/bold cyan]")
+        console.print(f"[dim]Problem: {problem}[/dim]\n")
+        
+        try:
+            # Import dynamically to avoid circular deps if any
+            from core.terminator_auto_solution_agent import AutoSolutionAgent
+            
+            # Since CLI loop is synchronous, we run the agent synchronously
+            import asyncio
+            
+            agent = AutoSolutionAgent(str(self.tools.project_path))
+            console.print("[dim]Analyzing codebase and planning solution... (This may take a moment)[/dim]")
+            
+            # Run async solve in sync context
+            result = asyncio.run(agent.solve(problem))
+            
+            success = result.get("success", False)
+            color = "green" if success else "red"
+            icon = "✅" if success else "❌"
+            
+            console.print(f"\n[{color}]{icon} Solution Complete (Confidence: {result.get('confidence', 0):.2f})[/{color}]")
+            console.print(f"\n[bold]Solution Summary:[/bold]\n{result.get('solution', 'No summary provided')}")
+            
+            if result.get("files_modified"):
+                console.print("\n[yellow]Files Modified:[/yellow]")
+                for f in result["files_modified"]:
+                    console.print(f"  • {f}")
+            
+        except Exception as e:
+            console.print(f"[red]Error in AutoSolutionAgent: {e}[/red]")
+
+    def cmd_provider(self, args: List[str] = None):
+        """Switch LLM provider (Ollama, Gemini, Claude, OpenAI)"""
+        if not args:
+            current = self.router.get_current_provider().value if self.router else "ollama (fallback)"
+            console.print(f"\n[cyan]Current Provider:[/cyan] [bold]{current}[/bold]")
+            console.print("[dim]Usage: /provider <ollama|gemini|claude|openai|grok>[/dim]")
+            return
+            
+        new_provider = args[0].lower()
+        
+        if self.router:
+            try:
+                # Map string to enum
+                from core.terminator_llm_router import LLMProvider
+                provider_enum = None
+                for p in LLMProvider:
+                    if p.value == new_provider:
+                        provider_enum = p
+                        break
+                
+                if provider_enum:
+                    self.router.set_provider(provider_enum)
+                    console.print(f"[green]✅ Switched provider to: {new_provider}[/green]")
+                    
+                    # Also update global for fallback
+                    global CURRENT_PROVIDER
+                    CURRENT_PROVIDER = new_provider
+                else:
+                    console.print(f"[red]Invalid provider: {new_provider}[/red]")
+                    console.print(f"[dim]Available: {', '.join([p.value for p in LLMProvider])}[/dim]")
+            except Exception as e:
+                console.print(f"[red]Error switching provider: {e}[/red]")
+        else:
+            console.print("[yellow]LLM Router not initialized. Using default Ollama.[/yellow]")
+
+    def cmd_load(self, args: List[str] = None):
+        """Resume a saved conversation"""
+        history_file = Path.home() / ".terminator_history.json"
+        
+        if not history_file.exists():
+            console.print("[red]No history file found.[/red]")
             return
 
-        console.print(f"\n[cyan]Loading conversation:[/cyan] {args[0]}\n")
-        console.print("[dim]Feature coming soon...[/dim]\n")
+        try:
+            with open(history_file) as f:
+                history = json.load(f)
+        except Exception as e:
+            console.print(f"[red]Error reading history: {e}[/red]")
+            return
+
+        if not args:
+            console.print("\n[bold cyan]📂 Saved Conversations[/bold cyan]\n")
+            for i, conv in enumerate(history[-10:], 1):
+                name = conv.get("name", "Untitled")
+                ts = conv.get("timestamp", "?")
+                tokens = conv.get("context_tokens", 0)
+                console.print(f"  {i}. [yellow]{name}[/yellow] [dim]({ts}) - {tokens} tokens[/dim]")
+            console.print("\n[dim]Usage: /load <name> or /load <index>[/dim]")
+            return
+
+        target = args[0]
+        selected = None
+        
+        # Try index
+        if target.isdigit():
+            idx = int(target) - 1
+            if 0 <= idx < len(history):
+                selected = history[-(len(history) - idx)] # Handle reverse logic if needed, simplify: history[idx] if list is full
+                # The display showed last 10. Let's act on the last 10 logic or full list?
+                # Simplest: use index from full list or match name
+                if idx < len(history):
+                     selected = history[idx] # Simple index access on full list might be confusing if we displayed partial.
+                     # Let's match name for safety usually. But let's try strict name first.
+
+        # Try name match
+        if not selected:
+            for conv in history:
+                if conv.get("name") == target:
+                    selected = conv
+                    break
+        
+        if selected:
+            self.context_tokens = selected.get("context_tokens", 0)
+            self.files_used = selected.get("files_used", [])
+            # In a real app we'd load messages too, but the history format here implies metadata only?
+            # Let's assume we want to restore context metadata at least.
+            console.print(f"[green]✅ Resumed conversation '{selected.get('name')}'[/green]")
+            console.print(f"[dim]Restored context: {len(self.files_used)} files, {self.context_tokens} tokens[/dim]")
+        else:
+            console.print(f"[red]❌ Conversation '{target}' not found[/red]")
 
     def cmd_export(self, args: List[str] = None):
         """Export conversation to file"""
@@ -2178,6 +2935,25 @@ REMEMBER: You're an AUTONOMOUS agent. When asked to do something - DO IT, don't 
             f.write(f"**Files Used:** {len(self.files_used)}\n\n")
 
         console.print(f"\n[green]✅ Exported to:[/green] {export_path}\n")
+
+    def register_module_command(self, command: str, handler: callable, module_name: str):
+        """Register a command from a dynamic module"""
+        if command in self.commands:
+            console.print(f"[yellow]⚠ Overwriting command {command} by module {module_name}[/yellow]")
+        
+        self.commands[command] = handler
+        self.module_commands[command] = module_name
+        
+        # Track in module loader if possible
+        if self.module_loader and module_name in self.module_loader.loaded_modules:
+            self.module_loader.loaded_modules[module_name]["commands"].append(command)
+
+    def unregister_module_command(self, command: str):
+        """Unregister a dynamic command"""
+        if command in self.commands:
+            del self.commands[command]
+        if command in self.module_commands:
+            del self.module_commands[command]
 
     # ==================== MAIN LOOP ====================
 

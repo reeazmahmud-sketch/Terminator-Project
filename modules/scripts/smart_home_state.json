@@ -1,0 +1,35 @@
+{
+  "devices": {
+    "lamp": {
+      "type": "light",
+      "state": "on"
+    },
+    "ac": {
+      "type": "thermostat",
+      "state": "on"
+    },
+    "thermometer": {
+      "type": "sensor",
+      "value": 80.0
+    }
+  },
+  "automations": [
+    {
+      "trigger": "thermometer",
+      "condition": ">",
+      "threshold": "75",
+      "action": "ac",
+      "value": "on"
+    }
+  ],
+  "scenes": {
+    "relaxing": {
+      "lamp": {
+        "state": "on"
+      },
+      "ac": {
+        "state": "off"
+      }
+    }
+  }
+}

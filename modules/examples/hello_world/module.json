@@ -1,0 +1,8 @@
+{
+    "name": "hello_world",
+    "version": "1.0.0",
+    "author": "Terminator Team",
+    "description": "A simple example module demonstrating commands.",
+    "entry": "main.py",
+    "dependencies": {}
+}

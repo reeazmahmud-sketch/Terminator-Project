@@ -20,7 +20,7 @@ import threading
 from datetime import datetime
 from pathlib import Path
 
-TERMINATOR_ROOT = "/Users/reeazmahmud/Desktop/Terminator"
+TERMINATOR_ROOT = Path(__file__).resolve().parent
 
 # Add integrations to path
 sys.path.insert(0, os.path.join(TERMINATOR_ROOT, 'integrations'))

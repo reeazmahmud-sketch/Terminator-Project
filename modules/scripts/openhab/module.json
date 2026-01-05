@@ -1,0 +1,10 @@
+{
+    "name": "openhab",
+    "version": "1.0.0",
+    "author": "Terminator Team",
+    "description": "Integration with OpenHAB Home Automation Server via REST API.",
+    "entry": "main.py",
+    "dependencies": {
+        "requests": ">=2.0.0"
+    }
+}

@@ -479,18 +479,14 @@ Each agent maintains:
 
 ### Data Storage Locations
 
-**This Project (Terminator-Project):**
+**This Project:**
 - **React build output**: `./terminator-web-terminal/dist/`
 - **Agent modules**: `./core/`
 - **Session settings**: `~/.terminator_cli_settings.json` (for Universal CLI)
 - **Health checks**: `./.health_checks/`
 - **Knowledge base**: `./.knowledge_base/`
 
-**Full System** (57GB at `/Users/reeazmahmud/Desktop/Terminator/`):
-- **Bus communication history**: `/Users/reeazmahmud/Desktop/Terminator/communication/data/`
-- **Complete agent memory/state**: Managed by Memory Agent
-
-**Note:** This Terminator-Project is a focused working copy. The full system with all historical data is at `/Users/reeazmahmud/Desktop/Terminator/`.
+**Note:** This is a focused working copy. Related full system data may exist in sibling directories.
 
 ## Testing Strategy
 
@@ -578,16 +574,6 @@ All errors logged to `/core/terminator_safe_logging.py` with sensitive data filt
 
 ## Project Context & Related Documentation
 
-**This Repository:** `/Users/reeazmahmud/Desktop/Terminator-Project`
-- Focused working copy for active development
-- Clean codebase without extensive history
-- All core functionality and agents included
-
-**Full System:** `/Users/reeazmahmud/Desktop/Terminator/` (57GB)
-- Complete historical data and communication logs
-- Full agent memory and state persistence
-- Reference for deep architectural context
-
 ### Documentation Within This Project
 
 **Getting Started:**
@@ -644,12 +630,7 @@ terminator
 ```
 
 ### Inter-Project Communication
-TERMINATOR can communicate with other desktop projects:
-- **AI Dashboard** (`/Users/reeazmahmud/Desktop/AI`)
-- **Main Terminator System** (`/Users/reeazmahmud/Desktop/Terminator`)
-- **Eve Project** (`/Users/reeazmahmud/Desktop/Eve`)
-- **ForgeCode** (`/Users/reeazmahmud/Desktop/ForgeCode`)
-
+TERMINATOR can communicate with other desktop projects via the Agent Communication Bus.
 See `INTER_PROJECT_COMMUNICATION_BRIDGE.md` and `HOW_TO_USE_INTER_PROJECT_COMMUNICATION.md` for details.
 
 ## Key Design Principles
@@ -704,17 +685,11 @@ If any component shows "Processing..." but returns no response:
 
 ### Virtual Environments
 
-The project has multiple virtual environments:
-- `/venv/` - Python 3.14 environment (newer features)
-- `/BanglaApp/venv/` - Separate environment for Bengali translation app
-
-**Activation (if needed):**
+The project may have virtual environments in `/venv/`. Scripts typically use system Python 3. Only activate venv if encountering dependency issues:
 ```bash
-source venv/bin/activate    # Activate main venv
+source venv/bin/activate    # Activate venv
 deactivate                  # Deactivate when done
 ```
-
-**Note:** Scripts typically use system Python 3. Only activate venv if encountering dependency issues.
 
 ## Agent Knowledge Base
 
