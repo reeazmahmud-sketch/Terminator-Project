@@ -1,0 +1,66 @@
+# Terminator Universal Framework
+# Architect: Reeaz Mahmud | AI Partner: Gemini
+# Date: December 17, 2025
+
+# Terminator Governance Policy & Lifecycle Spec
+# =================================================
+
+system_info:
+  name: "Terminator Autonomous OS"
+  version: "2.0.0"
+  owner: "REEAZ_325"
+  environment: "production"
+
+risk_levels:
+  low: 
+    description: "Read-only actions, data retrieval"
+    requires_approval: false
+  medium:
+    description: "Non-destructive writes, temp files, safe API calls"
+    requires_approval: false
+  high:
+    description: "System config changes, package installs, file overwrites"
+    requires_approval: true # In autonomous mode, this implies strict logging
+  critical:
+    description: "Disk wipes, secret access, kernel module loading"
+    requires_approval: true
+    requires_human_verification: true
+
+agent_registry:
+  # Define governance for specific agents
+  SentinelAgent:
+    risk_level: "high"
+    lifecycle_stage: "active"
+    allowed_tools: ["psutil", "subprocess", "brew"]
+    forbidden_actions: ["rm -rf /", "mkfs"]
+    max_resource_usage:
+      cpu_percent: 50
+      memory_mb: 512
+
+  KernelAI:
+    risk_level: "critical"
+    lifecycle_stage: "experimental"
+    allowed_tools: ["ioctl", "open_device"]
+    access_control:
+      requires_root: true
+
+  QAAgent:
+    risk_level: "low"
+    lifecycle_stage: "active"
+
+global_guardrails:
+  # Rules that apply to ALL agents
+  blocked_commands:
+    - "rm -rf /"
+    - ":(){ :|:& };:" # Fork bomb
+    - "dd if=/dev/zero"
+  
+  sensitive_paths:
+    - "/etc/shadow"
+    - "~/.ssh"
+    - "~/.aws"
+
+lifecycle_policies:
+  sunset_period_days: 180
+  require_update_check_days: 7
+  log_retention_days: 30

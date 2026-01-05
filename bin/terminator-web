@@ -1,0 +1,35 @@
+#!/bin/bash
+# Portable Terminator Web Terminal Launcher
+
+# Find Terminator (reuse same logic)
+find_terminator() {
+    if [ -f "./start_web_terminal.sh" ]; then
+        pwd
+        return 0
+    fi
+
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    if [ -f "$SCRIPT_DIR/../start_web_terminal.sh" ]; then
+        cd "$SCRIPT_DIR/.." && pwd
+        return 0
+    fi
+
+    for dir in ~/Desktop ~/Documents ~/Projects ~; do
+        for name in Terminator-Project Terminator; do
+            if [ -f "$dir/$name/start_web_terminal.sh" ]; then
+                echo "$dir/$name"
+                return 0
+            fi
+        done
+    done
+
+    return 1
+}
+
+TERMINATOR_HOME=$(find_terminator)
+if [ -z "$TERMINATOR_HOME" ]; then
+    echo "❌ Terminator not found"
+    exit 1
+fi
+
+cd "$TERMINATOR_HOME" && ./start_web_terminal.sh "$@"

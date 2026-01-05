@@ -1,0 +1,77 @@
+╔═══════════════════════════════════════════════════════════════════╗
+║                                                                   ║
+║        🚀 TERMINATOR UNIVERSAL CLI - QUICK START 🚀               ║
+║                                                                   ║
+║          One Terminal to Control All Platforms                    ║
+║                                                                   ║
+╚═══════════════════════════════════════════════════════════════════╝
+
+
+📦 STEP 1: INSTALL (Run Once)
+════════════════════════════════════════════════════════════════════
+
+cd ~/Desktop/Terminator-Project
+./install_cli.sh
+source ~/.zshrc
+
+
+🎯 STEP 2: LAUNCH TERMINATOR
+════════════════════════════════════════════════════════════════════
+
+terminator
+
+(Now you can type 'terminator' from ANYWHERE in your terminal!)
+
+
+💡 STEP 3: TRY THESE COMMANDS
+════════════════════════════════════════════════════════════════════
+
+/help              # Show all commands
+/healthCheck       # Run system diagnostics
+/status            # Check if TERMINATOR is running
+/connectWeb        # Connect to web interface
+/connections       # Show all connected platforms
+
+
+🌐 STEP 4: CONNECT TO PLATFORMS
+════════════════════════════════════════════════════════════════════
+
+/connectWeb              # Web interface (localhost:8000)
+/connectiOS 192.168.1.10 # iOS app (your iPhone IP)
+/connectAndroid          # Android app
+/connectMacOS            # macOS native app
+/connectMCP              # MCP servers
+
+
+🎮 STEP 5: CONTROL PLATFORMS
+════════════════════════════════════════════════════════════════════
+
+# Run on specific platform:
+/run ios get clipboard
+/run android take screenshot
+/run web refresh dashboard
+
+# Send to ALL platforms:
+/broadcast show system status
+
+
+✨ NATURAL LANGUAGE WORKS TOO!
+════════════════════════════════════════════════════════════════════
+
+terminator> show me system status
+terminator> what's my disk space
+terminator> connect to my iPhone
+terminator> run health check
+
+TERMINATOR understands and executes automatically!
+
+
+═══════════════════════════════════════════════════════════════════
+
+📚 FULL GUIDE:
+cat ~/Desktop/Terminator-Project/UNIVERSAL_CLI_GUIDE.md
+
+🎉 THAT'S IT! You now have universal control over all platforms
+from one terminal interface!
+
+═══════════════════════════════════════════════════════════════════

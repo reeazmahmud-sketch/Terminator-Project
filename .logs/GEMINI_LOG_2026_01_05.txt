@@ -1,0 +1,4 @@
+[2026-01-05 10:00:00] TASK START: Install Hugging Face MCP server extension (https://github.com/huggingface/hf-mcp-server)
+[2026-01-05 10:15:00] TASK COMPLETE: Installed Hugging Face MCP extension capability and registered server configuration in terminator_mcp_integration.py and terminator_universal_cli.py.
+[2026-01-05 10:16:00] TASK START: Install Gemini CLI Extension (https://github.com/gemini-cli-extensions/workspace)
+[2026-01-05 10:20:00] TASK COMPLETE: Installed workspace extension to mcp-servers/workspace and registered on port 9006.

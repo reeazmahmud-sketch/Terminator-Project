@@ -1,0 +1,54 @@
+{
+  "$schema": "https://www.raycast.com/schemas/extension.json",
+  "name": "terminator",
+  "title": "TERMINATOR AI",
+  "description": "Launch and interact with TERMINATOR AI agent system",
+  "icon": "command-icon.png",
+  "author": "terminator",
+  "license": "MIT",
+  "commands": [
+    {
+      "name": "launch",
+      "title": "Launch TERMINATOR",
+      "description": "Open TERMINATOR in Terminal",
+      "mode": "no-view"
+    },
+    {
+      "name": "ask",
+      "title": "Ask TERMINATOR",
+      "description": "Send a query to TERMINATOR",
+      "mode": "no-view",
+      "arguments": [
+        {
+          "name": "query",
+          "placeholder": "Your question...",
+          "type": "text",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "agents",
+      "title": "List Agents",
+      "description": "Show all TERMINATOR agents",
+      "mode": "no-view"
+    },
+    {
+      "name": "health",
+      "title": "Health Check",
+      "description": "Run TERMINATOR diagnostics",
+      "mode": "no-view"
+    }
+  ],
+  "dependencies": {
+    "@raycast/api": "^1.50.0"
+  },
+  "devDependencies": {
+    "@types/node": "^18.8.3",
+    "typescript": "^4.4.3"
+  },
+  "scripts": {
+    "build": "ray build -e dist",
+    "dev": "ray develop"
+  }
+}

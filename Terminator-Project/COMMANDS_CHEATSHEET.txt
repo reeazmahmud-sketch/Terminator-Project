@@ -1,0 +1,129 @@
+╔══════════════════════════════════════════════════════════════╗
+║           TERMINATOR - COMMANDS CHEAT SHEET                  ║
+║              Quick Reference for Terminal                    ║
+╚══════════════════════════════════════════════════════════════╝
+
+
+═══════════════════════════════════════════════════════════════
+ FIRST TIME SETUP (Do Once)
+═══════════════════════════════════════════════════════════════
+
+1. Open Terminal (Cmd + Space, type "Terminal")
+
+2. Navigate to project:
+   cd /Users/reeazmahmud/Desktop/Terminator-Project
+
+3. Install dependencies:
+   pip3 install -r requirements.txt
+
+4. Make scripts executable:
+   chmod +x start_*.sh
+
+✅ Done! Never need to do this again.
+
+
+═══════════════════════════════════════════════════════════════
+ START TERMINATOR (Every Time)
+═══════════════════════════════════════════════════════════════
+
+📋 COPY & PASTE THESE TWO LINES:
+
+cd /Users/reeazmahmud/Desktop/Terminator-Project
+./start_all.sh
+
+Then choose option 1 (Web Terminal)
+
+
+═══════════════════════════════════════════════════════════════
+ ALTERNATIVE START COMMANDS
+═══════════════════════════════════════════════════════════════
+
+🌐 WEB TERMINAL (Recommended):
+cd /Users/reeazmahmud/Desktop/Terminator-Project && ./start_web_terminal.sh
+
+🎨 TERMINAL UI:
+cd /Users/reeazmahmud/Desktop/Terminator-Project && ./start_terminal_ui.sh
+
+💬 SIMPLE CLI:
+cd /Users/reeazmahmud/Desktop/Terminator-Project && ./start_cli.sh
+
+
+═══════════════════════════════════════════════════════════════
+ AFTER STARTING
+═══════════════════════════════════════════════════════════════
+
+Open in browser:  http://localhost:8000
+
+Or let it open automatically!
+
+
+═══════════════════════════════════════════════════════════════
+ STOP TERMINATOR
+═══════════════════════════════════════════════════════════════
+
+Press:  Ctrl + C  (in the terminal window)
+
+
+═══════════════════════════════════════════════════════════════
+ CHECK STATUS
+═══════════════════════════════════════════════════════════════
+
+curl http://localhost:8000/status
+
+
+═══════════════════════════════════════════════════════════════
+ COMMON ISSUES & FIXES
+═══════════════════════════════════════════════════════════════
+
+❌ "Permission denied"
+   ✅ chmod +x start_*.sh
+
+❌ "Port 8000 already in use"
+   ✅ lsof -ti:8000 | xargs kill
+
+❌ "pip3: command not found"
+   ✅ brew install python3
+
+❌ "Module not found"
+   ✅ pip3 install -r requirements.txt
+
+
+═══════════════════════════════════════════════════════════════
+ COPY-PASTE READY COMMANDS
+═══════════════════════════════════════════════════════════════
+
+🚀 START:
+cd /Users/reeazmahmud/Desktop/Terminator-Project && ./start_all.sh
+
+🔍 STATUS:
+curl http://localhost:8000/status
+
+🛑 KILL PORT 8000:
+lsof -ti:8000 | xargs kill
+
+📦 REINSTALL:
+pip3 install -r requirements.txt
+
+🔧 FIX PERMISSIONS:
+chmod +x start_*.sh
+
+
+═══════════════════════════════════════════════════════════════
+ KEYBOARD SHORTCUTS
+═══════════════════════════════════════════════════════════════
+
+Ctrl + C     = Stop TERMINATOR
+Cmd + Space  = Open Spotlight (to open Terminal)
+Cmd + N      = New Terminal window
+Cmd + T      = New Terminal tab
+
+
+═══════════════════════════════════════════════════════════════
+ THAT'S IT!
+═══════════════════════════════════════════════════════════════
+
+Most common command:
+
+cd /Users/reeazmahmud/Desktop/Terminator-Project && ./start_all.sh
+
+Just copy, paste, press Enter, choose option 1. Done! 🎉

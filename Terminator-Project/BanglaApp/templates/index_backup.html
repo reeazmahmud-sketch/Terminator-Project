@@ -1,0 +1,1208 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>বাংলা টেক্সট প্রসেসর | Bangla Text Processor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans Bengali', 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .input-section {
+            margin-bottom: 20px;
+        }
+
+        .upload-zone {
+            border: 2px dashed #667eea;
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 20px;
+            background: #f8f9fa;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .upload-zone:hover {
+            background: #e8eaf6;
+            border-color: #764ba2;
+        }
+
+        .upload-zone.dragging {
+            background: #e3f2fd;
+            border-color: #2196f3;
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 3em;
+            margin-bottom: 10px;
+            color: #667eea;
+        }
+
+        .upload-text {
+            font-size: 1.1em;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .file-types {
+            font-size: 0.9em;
+            color: #999;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .uploaded-file {
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+            padding: 12px;
+            margin-bottom: 15px;
+            border-radius: 6px;
+            display: none;
+        }
+
+        .uploaded-file.active {
+            display: block;
+        }
+
+        .textarea-wrapper {
+            position: relative;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 150px;
+            padding: 15px;
+            font-size: 1.1em;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-family: 'Noto Sans Bengali', Arial, sans-serif;
+            resize: vertical;
+            transition: border-color 0.3s;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 1em;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .btn-record {
+            background: #ff4757;
+            color: white;
+        }
+
+        .btn-record:hover {
+            background: #ff3838;
+        }
+
+        .btn-record.recording {
+            animation: pulse 1.5s infinite;
+            background: #ee5a6f;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .results {
+            margin-top: 20px;
+        }
+
+        .result-card {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+        }
+
+        .result-card h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+
+        .feedback-item {
+            padding: 8px 12px;
+            margin: 5px 0;
+            background: white;
+            border-radius: 6px;
+            border-left: 3px solid #4CAF50;
+        }
+
+        .suggestion-item {
+            padding: 8px 12px;
+            margin: 5px 0;
+            background: #fff3cd;
+            border-radius: 6px;
+            border-left: 3px solid #ffc107;
+        }
+
+        .rating {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .rating-bar {
+            flex: 1;
+            height: 30px;
+            background: #e0e0e0;
+            border-radius: 15px;
+            overflow: hidden;
+        }
+
+        .rating-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff6b6b 0%, #ffd93d 50%, #6bcf7f 100%);
+            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .opinion-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            font-size: 1.1em;
+            line-height: 1.6;
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            margin: 15px 0;
+        }
+
+        .stat-item {
+            flex: 1;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            display: none;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #ff4757;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            display: none;
+        }
+
+        .error.active {
+            display: block;
+        }
+
+        .language-switcher {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            z-index: 1000;
+        }
+
+        .lang-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 20px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .lang-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 7px 25px rgba(102, 126, 234, 0.6);
+        }
+
+        .lang-menu {
+            position: absolute;
+            bottom: 70px;
+            right: 0;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            padding: 10px;
+            display: none;
+            min-width: 150px;
+        }
+
+        .lang-menu.active {
+            display: block;
+        }
+
+        .lang-option {
+            padding: 12px 20px;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .lang-option:hover {
+            background: #f0f0f0;
+        }
+
+        .lang-option.selected {
+            background: #e8eaf6;
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            .stats {
+                flex-direction: column;
+            }
+
+            .button-group {
+                flex-direction: column;
+            }
+
+            button {
+                width: 100%;
+            }
+
+            .language-switcher {
+                bottom: 20px;
+                right: 20px;
+            }
+
+            .lang-btn {
+                padding: 12px 16px;
+                font-size: 0.9em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 data-i18n="app_title">🇧🇩 বাংলা টেক্সট প্রসেসর</h1>
+            <p data-i18n="app_subtitle">এআই বিশ্লেষণ সহ বাংলা টেক্সট প্রসেসর</p>
+        </div>
+
+        <div class="card">
+            <div class="input-section">
+                <h2 style="margin-bottom: 15px;" data-i18n="input_title">📝 আপনার টেক্সট লিখুন</h2>
+
+                <!-- Input Options Tabs -->
+                <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+                    <button class="btn-secondary" onclick="showInputMethod('file')" style="flex: 1; min-width: 120px;">
+                        <span data-i18n="tab_file">📄 ফাইল আপলোড</span>
+                    </button>
+                    <button class="btn-secondary" onclick="showInputMethod('url')" style="flex: 1; min-width: 120px;">
+                        <span data-i18n="tab_url">🌐 ইউআরএল থেকে</span>
+                    </button>
+                    <button class="btn-secondary" onclick="showInputMethod('email')" style="flex: 1; min-width: 120px;">
+                        <span data-i18n="tab_email">📧 ইমেইল/এসএমএস</span>
+                    </button>
+                    <button class="btn-secondary" onclick="showInputMethod('translate')" style="flex: 1; min-width: 120px;">
+                        <span data-i18n="tab_translate">🌍 অনুবাদ করুন</span>
+                    </button>
+                </div>
+
+                <!-- File Upload Zone -->
+                <div id="fileMethod" class="input-method">
+                    <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+                        <div class="upload-icon">📄</div>
+                        <div class="upload-text" data-i18n="upload_text">ফাইল আপলোড করুন</div>
+                        <div class="file-types" data-i18n="upload_types">টেনে এনে ছেড়ে দিন বা ক্লিক করুন<br>সমর্থিত: .txt, .pdf, .docx, .md, .rtf</div>
+                        <input type="file" id="fileInput" accept=".txt,.pdf,.docx,.md,.rtf">
+                    </div>
+                    <div class="uploaded-file" id="uploadedFile">
+                        <strong data-i18n="uploaded">📎 আপলোড হয়েছে:</strong> <span id="fileName"></span>
+                    </div>
+                </div>
+
+                <!-- URL Import -->
+                <div id="urlMethod" class="input-method" style="display: none;">
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 15px;">
+                        <h3 style="margin-bottom: 10px;" data-i18n="url_title">🌐 ওয়েবসাইট/সোশ্যাল মিডিয়া থেকে আমদানি করুন</h3>
+                        <p style="color: #666; margin-bottom: 15px;" data-i18n="url_desc">ওয়েবসাইট, ফেসবুক, টুইটার, ব্লগ ইত্যাদি থেকে ইউআরএল পেস্ট করুন</p>
+                        <input type="url" id="urlInput" placeholder="https://example.com/bangla-article"
+                               style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 1em; margin-bottom: 10px;">
+                        <button class="btn-primary" onclick="importFromURL()">
+                            <span data-i18n="url_import">🔗 ইউআরএল থেকে টেক্সট আমদানি করুন</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Live Translator -->
+                <div id="translateMethod" class="input-method" style="display: none;">
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 15px;">
+                        <h3 style="margin-bottom: 10px;" data-i18n="translate_title">🌍 লাইভ অনুবাদ - বাংলায়</h3>
+                        <p style="color: #666; margin-bottom: 15px;" data-i18n="translate_desc">ইংরেজি, হিন্দি বা আরবি টেক্সট লিখুন এবং স্বয়ংক্রিয়ভাবে বাংলায় অনুবাদ দেখুন</p>
+
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 8px; font-weight: 600;" data-i18n="source_lang">উৎস ভাষা:</label>
+                            <select id="sourceLang" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 1em;">
+                                <option value="en">English (ইংরেজি)</option>
+                                <option value="hi">Hindi (হিন্দি)</option>
+                                <option value="ar">Arabic (আরবি)</option>
+                            </select>
+                        </div>
+
+                        <textarea id="sourceText" placeholder="Type text in English, Hindi, or Arabic..."
+                                  style="width: 100%; min-height: 120px; padding: 15px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 1.1em; margin-bottom: 15px; font-family: 'Arial', sans-serif;"></textarea>
+
+                        <button class="btn-primary" onclick="translateToBangla()">
+                            <span data-i18n="translate_btn">🔄 বাংলায় অনুবাদ করুন</span>
+                        </button>
+
+                        <div id="translatedResult" style="background: white; padding: 15px; border-radius: 8px; margin-top: 15px; display: none; border-left: 4px solid #4caf50;">
+                            <strong data-i18n="translated_text">অনুবাদিত টেক্সট:</strong>
+                            <p id="translatedText" style="margin-top: 10px; font-size: 1.1em; line-height: 1.6;"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Email/SMS Instructions -->
+                <div id="emailMethod" class="input-method" style="display: none;">
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 15px;">
+                        <h3 style="margin-bottom: 10px;" data-i18n="email_title">📧 ইমেইল বা এসএমএস এর মাধ্যমে টেক্সট গ্রহণ করুন</h3>
+
+                        <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #667eea;">
+                            <strong data-i18n="email_integration">ইমেইল ইন্টিগ্রেশন:</strong>
+                            <p style="color: #666; margin: 10px 0;" data-i18n="email_send">এই ইমেইল ঠিকানায় বাংলা টেক্সট পাঠান:</p>
+                            <div style="background: #e8eaf6; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 1.1em;">
+                                bangla@yourapp.com
+                            </div>
+                            <p style="color: #666; margin-top: 10px; font-size: 0.9em;" data-i18n="email_info">
+                                ✉️ টেক্সট স্বয়ংক্রিয়ভাবে নিচে আপনার ইনবক্সে প্রদর্শিত হবে<br>
+                                ⏱️ নতুন বার্তার জন্য প্রতি ৩০ সেকেন্ডে পরীক্ষা করুন
+                            </p>
+                        </div>
+
+                        <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #4caf50;">
+                            <strong data-i18n="sms_integration">এসএমএস/টেক্সট ইন্টিগ্রেশন:</strong>
+                            <p style="color: #666; margin: 10px 0;" data-i18n="sms_send">বাংলা কন্টেন্ট টেক্সট করুন:</p>
+                            <div style="background: #e8f5e9; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 1.1em;">
+                                +1 (555) 123-BANGLA
+                            </div>
+                            <p style="color: #666; margin-top: 10px; font-size: 0.9em;" data-i18n="sms_info">
+                                📱 বার্তা তাৎক্ষণিকভাবে প্রদর্শিত হয়<br>
+                                ✅ হোয়াটসঅ্যাপ, টেলিগ্রাম, আইম্যাসেজ এর সাথে কাজ করে
+                            </p>
+                        </div>
+
+                        <button class="btn-primary" onclick="checkInbox()">
+                            <span data-i18n="check_inbox">📬 এখনই ইনবক্স পরীক্ষা করুন</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="textarea-wrapper">
+                    <textarea id="banglaText" placeholder="এখানে বাংলা টেক্সট লিখুন অথবা পেস্ট করুন..."></textarea>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn-primary" onclick="analyzeText()">
+                        <span data-i18n="btn_analyze">🔍 বিশ্লেষণ করুন</span>
+                    </button>
+                    <button class="btn-secondary" onclick="beautifyText()">
+                        <span data-i18n="btn_beautify">✨ সুন্দর করুন</span>
+                    </button>
+                    <button class="btn-record" id="recordBtn" onclick="toggleRecording()">
+                        <span data-i18n="btn_record">🎤 অডিও রেকর্ড করুন</span>
+                    </button>
+                    <button class="btn-secondary" onclick="clearAll()">
+                        <span data-i18n="btn_clear">🗑️ সব মুছুন</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p style="margin-top: 10px;">Processing...</p>
+            </div>
+
+            <div class="error" id="error"></div>
+
+            <div class="results" id="results" style="display: none;">
+                <div class="stats" id="stats"></div>
+
+                <div class="opinion-box" id="opinion"></div>
+
+                <div class="rating" id="ratingSection"></div>
+
+                <div class="result-card" id="feedbackSection" style="display: none;">
+                    <h3>📊 Feedback</h3>
+                    <div id="feedbackList"></div>
+                </div>
+
+                <div class="result-card" id="suggestionsSection" style="display: none;">
+                    <h3>💡 Suggestions</h3>
+                    <div id="suggestionsList"></div>
+                </div>
+
+                <div class="result-card" id="beautifiedSection" style="display: none;">
+                    <h3>✨ Beautified Text</h3>
+                    <div style="background: white; padding: 15px; border-radius: 6px; margin-top: 10px;">
+                        <p id="beautifiedText" style="font-size: 1.1em; line-height: 1.6;"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 style="margin-bottom: 15px;" data-i18n="how_to_use_title">ℹ️ কিভাবে ব্যবহার করবেন</h3>
+            <ol style="line-height: 2; padding-left: 20px;">
+                <li data-i18n="how_step1">উপরের বক্সে বাংলা টেক্সট টাইপ করুন বা পেস্ট করুন</li>
+                <li data-i18n="how_step2">অথবা 🎤 বাটন ক্লিক করে অডিও রেকর্ড করুন</li>
+                <li data-i18n="how_step3">"বিশ্লেষণ করুন" বাটন ক্লিক করুন এআই এর মতামত পেতে</li>
+                <li data-i18n="how_step4">আপনার টেক্সট সুন্দর করতে "সুন্দর করুন" বাটন ক্লিক করুন</li>
+                <li data-i18n="how_step5">অন্য ভাষা থেকে অনুবাদ করতে "অনুবাদ করুন" ট্যাব ব্যবহার করুন</li>
+            </ol>
+        </div>
+    </div>
+
+    <!-- Language Switcher Button -->
+    <div class="language-switcher">
+        <button class="lang-btn" onclick="toggleLangMenu()">
+            <span id="currentLangFlag">🇧🇩</span>
+            <span id="currentLang">বাংলা</span>
+        </button>
+        <div class="lang-menu" id="langMenu">
+            <div class="lang-option selected" onclick="switchLanguage('bn')">
+                <span>🇧🇩</span>
+                <span>বাংলা</span>
+            </div>
+            <div class="lang-option" onclick="switchLanguage('en')">
+                <span>🇬🇧</span>
+                <span>English</span>
+            </div>
+            <div class="lang-option" onclick="switchLanguage('hi')">
+                <span>🇮🇳</span>
+                <span>हिन्दी</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Language translations
+        const translations = {
+            bn: {
+                app_title: "🇧🇩 বাংলা টেক্সট প্রসেসর",
+                app_subtitle: "এআই বিশ্লেষণ সহ বাংলা টেক্সট প্রসেসর",
+                input_title: "📝 আপনার টেক্সট লিখুন",
+                tab_file: "📄 ফাইল আপলোড",
+                tab_url: "🌐 ইউআরএল থেকে",
+                tab_email: "📧 ইমেইল/এসএমএস",
+                tab_translate: "🌍 অনুবাদ করুন",
+                upload_text: "ফাইল আপলোড করুন",
+                upload_types: "টেনে এনে ছেড়ে দিন বা ক্লিক করুন<br>সমর্থিত: .txt, .pdf, .docx, .md, .rtf",
+                uploaded: "📎 আপলোড হয়েছে:",
+                url_title: "🌐 ওয়েবসাইট/সোশ্যাল মিডিয়া থেকে আমদানি করুন",
+                url_desc: "ওয়েবসাইট, ফেসবুক, টুইটার, ব্লগ ইত্যাদি থেকে ইউআরএল পেস্ট করুন",
+                url_import: "🔗 ইউআরএল থেকে টেক্সট আমদানি করুন",
+                translate_title: "🌍 লাইভ অনুবাদ - বাংলায়",
+                translate_desc: "ইংরেজি, হিন্দি বা আরবি টেক্সট লিখুন এবং স্বয়ংক্রিয়ভাবে বাংলায় অনুবাদ দেখুন",
+                source_lang: "উৎস ভাষা:",
+                translate_btn: "🔄 বাংলায় অনুবাদ করুন",
+                translated_text: "অনুবাদিত টেক্সট:",
+                email_title: "📧 ইমেইল বা এসএমএস এর মাধ্যমে টেক্সট গ্রহণ করুন",
+                email_integration: "ইমেইল ইন্টিগ্রেশন:",
+                email_send: "এই ইমেইল ঠিকানায় বাংলা টেক্সট পাঠান:",
+                email_info: "✉️ টেক্সট স্বয়ংক্রিয়ভাবে নিচে আপনার ইনবক্সে প্রদর্শিত হবে<br>⏱️ নতুন বার্তার জন্য প্রতি ৩০ সেকেন্ডে পরীক্ষা করুন",
+                sms_integration: "এসএমএস/টেক্সট ইন্টিগ্রেশন:",
+                sms_send: "বাংলা কন্টেন্ট টেক্সট করুন:",
+                sms_info: "📱 বার্তা তাৎক্ষণিকভাবে প্রদর্শিত হয়<br>✅ হোয়াটসঅ্যাপ, টেলিগ্রাম, আইম্যাসেজ এর সাথে কাজ করে",
+                check_inbox: "📬 এখনই ইনবক্স পরীক্ষা করুন",
+                btn_analyze: "🔍 বিশ্লেষণ করুন",
+                btn_beautify: "✨ সুন্দর করুন",
+                btn_record: "🎤 অডিও রেকর্ড করুন",
+                btn_clear: "🗑️ সব মুছুন",
+                how_to_use_title: "ℹ️ কিভাবে ব্যবহার করবেন",
+                how_step1: "উপরের বক্সে বাংলা টেক্সট টাইপ করুন বা পেস্ট করুন",
+                how_step2: "অথবা 🎤 বাটন ক্লিক করে অডিও রেকর্ড করুন",
+                how_step3: '"বিশ্লেষণ করুন" বাটন ক্লিক করুন এআই এর মতামত পেতে',
+                how_step4: 'আপনার টেক্সট সুন্দর করতে "সুন্দর করুন" বাটন ক্লিক করুন',
+                how_step5: 'অন্য ভাষা থেকে অনুবাদ করতে "অনুবাদ করুন" ট্যাব ব্যবহার করুন'
+            },
+            en: {
+                app_title: "🇧🇩 Bangla Text Processor",
+                app_subtitle: "Bangla Text Processor with AI Analysis",
+                input_title: "📝 Write Your Text",
+                tab_file: "📄 File Upload",
+                tab_url: "🌐 From URL",
+                tab_email: "📧 Email/SMS",
+                tab_translate: "🌍 Translate",
+                upload_text: "Upload File",
+                upload_types: "Drag & drop or click to browse<br>Supported: .txt, .pdf, .docx, .md, .rtf",
+                uploaded: "📎 Uploaded:",
+                url_title: "🌐 Import from Website/Social Media",
+                url_desc: "Paste URL from websites, Facebook, Twitter, blogs, etc.",
+                url_import: "🔗 Import Text from URL",
+                translate_title: "🌍 Live Translation - to Bangla",
+                translate_desc: "Type text in English, Hindi or Arabic and see automatic translation to Bangla",
+                source_lang: "Source Language:",
+                translate_btn: "🔄 Translate to Bangla",
+                translated_text: "Translated Text:",
+                email_title: "📧 Receive Text via Email or SMS",
+                email_integration: "Email Integration:",
+                email_send: "Send Bangla text to this email address:",
+                email_info: "✉️ Text will automatically appear in your inbox below<br>⏱️ Check every 30 seconds for new messages",
+                sms_integration: "SMS/Text Integration:",
+                sms_send: "Text Bangla content to:",
+                sms_info: "📱 Messages appear instantly<br>✅ Works with WhatsApp, Telegram, iMessage",
+                check_inbox: "📬 Check Inbox Now",
+                btn_analyze: "🔍 Analyze",
+                btn_beautify: "✨ Beautify",
+                btn_record: "🎤 Record Audio",
+                btn_clear: "🗑️ Clear All",
+                how_to_use_title: "ℹ️ How to Use",
+                how_step1: "Type or paste Bangla text in the box above",
+                how_step2: "Or click 🎤 button to record audio",
+                how_step3: 'Click "Analyze" button to get AI feedback',
+                how_step4: 'Click "Beautify" to improve your text formatting',
+                how_step5: 'Use "Translate" tab to translate from other languages'
+            },
+            hi: {
+                app_title: "🇧🇩 बांग्ला टेक्स्ट प्रोसेसर",
+                app_subtitle: "एआई विश्लेषण के साथ बांग्ला टेक्स्ट प्रोसेसर",
+                input_title: "📝 अपना टेक्स्ट लिखें",
+                tab_file: "📄 फ़ाइल अपलोड",
+                tab_url: "🌐 URL से",
+                tab_email: "📧 ईमेल/SMS",
+                tab_translate: "🌍 अनुवाद करें",
+                upload_text: "फ़ाइल अपलोड करें",
+                upload_types: "खींचें और छोड़ें या ब्राउज़ करने के लिए क्लिक करें<br>समर्थित: .txt, .pdf, .docx, .md, .rtf",
+                uploaded: "📎 अपलोड किया गया:",
+                url_title: "🌐 वेबसाइट/सोशल मीडिया से आयात करें",
+                url_desc: "वेबसाइट, फेसबुक, ट्विटर, ब्लॉग आदि से URL पेस्ट करें",
+                url_import: "🔗 URL से टेक्स्ट आयात करें",
+                translate_title: "🌍 लाइव अनुवाद - बांग्ला में",
+                translate_desc: "अंग्रेजी, हिंदी या अरबी में टेक्स्ट टाइप करें और स्वचालित रूप से बांग्ला में अनुवाद देखें",
+                source_lang: "स्रोत भाषा:",
+                translate_btn: "🔄 बांग्ला में अनुवाद करें",
+                translated_text: "अनुवादित टेक्स्ट:",
+                email_title: "📧 ईमेल या SMS के माध्यम से टेक्स्ट प्राप्त करें",
+                email_integration: "ईमेल एकीकरण:",
+                email_send: "इस ईमेल पते पर बांग्ला टेक्स्ट भेजें:",
+                email_info: "✉️ टेक्स्ट स्वचालित रूप से नीचे आपके इनबॉक्स में दिखाई देगा<br>⏱️ नए संदेशों के लिए हर 30 सेकंड में जांचें",
+                sms_integration: "SMS/टेक्स्ट एकीकरण:",
+                sms_send: "बांग्ला सामग्री टेक्स्ट करें:",
+                sms_info: "📱 संदेश तुरंत दिखाई देते हैं<br>✅ WhatsApp, Telegram, iMessage के साथ काम करता है",
+                check_inbox: "📬 अभी इनबॉक्स जांचें",
+                btn_analyze: "🔍 विश्लेषण करें",
+                btn_beautify: "✨ सुंदर बनाएं",
+                btn_record: "🎤 ऑडियो रिकॉर्ड करें",
+                btn_clear: "🗑️ सब साफ़ करें",
+                how_to_use_title: "ℹ️ उपयोग कैसे करें",
+                how_step1: "ऊपर के बॉक्स में बांग्ला टेक्स्ट टाइप या पेस्ट करें",
+                how_step2: "या ऑडियो रिकॉर्ड करने के लिए 🎤 बटन पर क्लिक करें",
+                how_step3: 'एआई फीडबैक प्राप्त करने के लिए "विश्लेषण करें" बटन पर क्लिक करें',
+                how_step4: 'अपने टेक्स्ट फ़ॉर्मेटिंग को बेहतर बनाने के लिए "सुंदर बनाएं" पर क्लिक करें',
+                how_step5: 'अन्य भाषाओं से अनुवाद करने के लिए "अनुवाद करें" टैब का उपयोग करें'
+            }
+        };
+
+        let currentLanguage = 'bn';
+
+        // Toggle language menu
+        function toggleLangMenu() {
+            const menu = document.getElementById('langMenu');
+            menu.classList.toggle('active');
+        }
+
+        // Switch language
+        function switchLanguage(lang) {
+            currentLanguage = lang;
+
+            // Update language button
+            const flags = { bn: '🇧🇩', en: '🇬🇧', hi: '🇮🇳' };
+            const names = { bn: 'বাংলা', en: 'English', hi: 'हिन्दी' };
+
+            document.getElementById('currentLangFlag').textContent = flags[lang];
+            document.getElementById('currentLang').textContent = names[lang];
+
+            // Update selected option
+            document.querySelectorAll('.lang-option').forEach(opt => {
+                opt.classList.remove('selected');
+            });
+            event.currentTarget.classList.add('selected');
+
+            // Translate page
+            translatePage(lang);
+
+            // Close menu
+            document.getElementById('langMenu').classList.remove('active');
+        }
+
+        // Translate page elements
+        function translatePage(lang) {
+            document.querySelectorAll('[data-i18n]').forEach(element => {
+                const key = element.getAttribute('data-i18n');
+                if (translations[lang] && translations[lang][key]) {
+                    element.textContent = translations[lang][key];
+                }
+            });
+        }
+
+        // Close menu when clicking outside
+        document.addEventListener('click', function(event) {
+            const langSwitcher = document.querySelector('.language-switcher');
+            if (!langSwitcher.contains(event.target)) {
+                document.getElementById('langMenu').classList.remove('active');
+            }
+        });
+
+        let isRecording = false;
+        let mediaRecorder;
+        let audioChunks = [];
+
+        function analyzeText() {
+            const text = document.getElementById('banglaText').value.trim();
+
+            if (!text) {
+                showError('Please enter some text first!');
+                return;
+            }
+
+            showLoading(true);
+            hideError();
+
+            fetch('/api/analyze', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ text: text })
+            })
+            .then(response => response.json())
+            .then(data => {
+                showLoading(false);
+                displayResults(data);
+            })
+            .catch(error => {
+                showLoading(false);
+                showError('Error analyzing text: ' + error.message);
+            });
+        }
+
+        function beautifyText() {
+            const text = document.getElementById('banglaText').value.trim();
+
+            if (!text) {
+                showError('Please enter some text first!');
+                return;
+            }
+
+            showLoading(true);
+
+            fetch('/api/beautify', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ text: text })
+            })
+            .then(response => response.json())
+            .then(data => {
+                showLoading(false);
+                document.getElementById('banglaText').value = data.beautified;
+                showError('✅ Text beautified!', 'success');
+                setTimeout(hideError, 2000);
+            })
+            .catch(error => {
+                showLoading(false);
+                showError('Error beautifying text: ' + error.message);
+            });
+        }
+
+        function displayResults(data) {
+            // Show results section
+            document.getElementById('results').style.display = 'block';
+
+            // Display stats
+            const statsHTML = `
+                <div class="stat-item">
+                    <div class="stat-number">${data.word_count}</div>
+                    <div class="stat-label">শব্দ (Words)</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">${data.character_count}</div>
+                    <div class="stat-label">অক্ষর (Characters)</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">${data.rating}/10</div>
+                    <div class="stat-label">রেটিং (Rating)</div>
+                </div>
+            `;
+            document.getElementById('stats').innerHTML = statsHTML;
+
+            // Display opinion
+            document.getElementById('opinion').innerHTML = `
+                <strong>🤖 AI এর মতামত:</strong><br>
+                ${data.opinion}
+            `;
+
+            // Display rating bar
+            const ratingHTML = `
+                <strong>Quality:</strong>
+                <div class="rating-bar">
+                    <div class="rating-fill" style="width: ${data.rating * 10}%">
+                        ${data.rating}/10
+                    </div>
+                </div>
+            `;
+            document.getElementById('ratingSection').innerHTML = ratingHTML;
+
+            // Display feedback
+            if (data.feedback && data.feedback.length > 0) {
+                document.getElementById('feedbackSection').style.display = 'block';
+                const feedbackHTML = data.feedback.map(item =>
+                    `<div class="feedback-item">${item}</div>`
+                ).join('');
+                document.getElementById('feedbackList').innerHTML = feedbackHTML;
+            }
+
+            // Display suggestions
+            if (data.suggestions && data.suggestions.length > 0) {
+                document.getElementById('suggestionsSection').style.display = 'block';
+                const suggestionsHTML = data.suggestions.map(item =>
+                    `<div class="suggestion-item">${item}</div>`
+                ).join('');
+                document.getElementById('suggestionsList').innerHTML = suggestionsHTML;
+            }
+
+            // Display beautified text
+            if (data.beautified_text && data.beautified_text !== data.original_text) {
+                document.getElementById('beautifiedSection').style.display = 'block';
+                document.getElementById('beautifiedText').textContent = data.beautified_text;
+            }
+        }
+
+        function toggleRecording() {
+            if (!isRecording) {
+                startRecording();
+            } else {
+                stopRecording();
+            }
+        }
+
+        async function startRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+
+                mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    // Note: For actual speech-to-text, you would send this to a backend service
+                    showError('⚠️ Audio recorded! Speech-to-text requires additional setup with Google/OpenAI API', 'info');
+                    setTimeout(hideError, 5000);
+                };
+
+                mediaRecorder.start();
+                isRecording = true;
+
+                const btn = document.getElementById('recordBtn');
+                btn.textContent = '⏹️ থামান (Stop)';
+                btn.classList.add('recording');
+
+            } catch (error) {
+                showError('Microphone access denied: ' + error.message);
+            }
+        }
+
+        function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+                mediaRecorder.stream.getTracks().forEach(track => track.stop());
+                isRecording = false;
+
+                const btn = document.getElementById('recordBtn');
+                btn.textContent = '🎤 অডিও রেকর্ড করুন (Record Audio)';
+                btn.classList.remove('recording');
+            }
+        }
+
+        function clearAll() {
+            document.getElementById('banglaText').value = '';
+            document.getElementById('results').style.display = 'none';
+            hideError();
+        }
+
+        function showLoading(show) {
+            const loader = document.getElementById('loading');
+            if (show) {
+                loader.classList.add('active');
+            } else {
+                loader.classList.remove('active');
+            }
+        }
+
+        function showError(message, type = 'error') {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.style.background = type === 'success' ? '#6bcf7f' : (type === 'info' ? '#3498db' : '#ff4757');
+            errorDiv.classList.add('active');
+        }
+
+        function hideError() {
+            document.getElementById('error').classList.remove('active');
+        }
+
+        // Input method switching
+        function showInputMethod(method) {
+            // Hide all methods
+            document.querySelectorAll('.input-method').forEach(el => {
+                el.style.display = 'none';
+            });
+
+            // Show selected method
+            if (method === 'file') {
+                document.getElementById('fileMethod').style.display = 'block';
+            } else if (method === 'url') {
+                document.getElementById('urlMethod').style.display = 'block';
+            } else if (method === 'email') {
+                document.getElementById('emailMethod').style.display = 'block';
+            } else if (method === 'translate') {
+                document.getElementById('translateMethod').style.display = 'block';
+            }
+        }
+
+        // Translate text to Bangla
+        function translateToBangla() {
+            const sourceLang = document.getElementById('sourceLang').value;
+            const sourceText = document.getElementById('sourceText').value.trim();
+
+            if (!sourceText) {
+                showError('Please enter text to translate');
+                return;
+            }
+
+            showLoading(true);
+            hideError();
+
+            fetch('/api/translate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    text: sourceText,
+                    source_lang: sourceLang,
+                    target_lang: 'bn'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                showLoading(false);
+                if (data.error) {
+                    showError(data.error);
+                } else {
+                    // Show translated result
+                    document.getElementById('translatedText').textContent = data.translated_text;
+                    document.getElementById('translatedResult').style.display = 'block';
+
+                    // Also populate main textarea
+                    document.getElementById('banglaText').value = data.translated_text;
+
+                    showError('✅ Translation complete!', 'success');
+                    setTimeout(hideError, 3000);
+                }
+            })
+            .catch(error => {
+                showLoading(false);
+                showError('Error translating text: ' + error.message);
+            });
+        }
+
+        // Import text from URL
+        function importFromURL() {
+            const url = document.getElementById('urlInput').value.trim();
+
+            if (!url) {
+                showError('Please enter a URL');
+                return;
+            }
+
+            showLoading(true);
+            hideError();
+
+            fetch('/api/import-url', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ url: url })
+            })
+            .then(response => response.json())
+            .then(data => {
+                showLoading(false);
+                if (data.error) {
+                    showError(data.error);
+                } else {
+                    document.getElementById('banglaText').value = data.text;
+                    showError('✅ ' + data.message, 'success');
+                    setTimeout(hideError, 3000);
+                }
+            })
+            .catch(error => {
+                showLoading(false);
+                showError('Error importing from URL: ' + error.message);
+            });
+        }
+
+        // Check email/SMS inbox
+        function checkInbox() {
+            showLoading(true);
+            hideError();
+
+            fetch('/api/check-inbox', {
+                method: 'GET'
+            })
+            .then(response => response.json())
+            .then(data => {
+                showLoading(false);
+                if (data.error) {
+                    showError(data.error);
+                } else if (data.messages && data.messages.length > 0) {
+                    // Get the most recent message
+                    const latestMessage = data.messages[0];
+                    document.getElementById('banglaText').value = latestMessage.text;
+                    showError(`✅ Loaded message from ${latestMessage.source}`, 'success');
+                    setTimeout(hideError, 3000);
+                } else {
+                    showError('📭 No new messages found', 'info');
+                    setTimeout(hideError, 3000);
+                }
+            })
+            .catch(error => {
+                showLoading(false);
+                showError('Error checking inbox: ' + error.message);
+            });
+        }
+
+        // File upload handling
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+
+        // Prevent default drag behaviors
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            uploadZone.addEventListener(eventName, preventDefaults, false);
+            document.body.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        // Highlight drop zone when dragging
+        ['dragenter', 'dragover'].forEach(eventName => {
+            uploadZone.addEventListener(eventName, () => {
+                uploadZone.classList.add('dragging');
+            }, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            uploadZone.addEventListener(eventName, () => {
+                uploadZone.classList.remove('dragging');
+            }, false);
+        });
+
+        // Handle dropped files
+        uploadZone.addEventListener('drop', (e) => {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            handleFiles(files);
+        }, false);
+
+        // Handle file input change
+        fileInput.addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+        });
+
+        function handleFiles(files) {
+            if (files.length === 0) return;
+
+            const file = files[0];
+            uploadFile(file);
+        }
+
+        function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            showLoading(true);
+            hideError();
+
+            fetch('/api/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                showLoading(false);
+                if (data.error) {
+                    showError(data.error);
+                } else {
+                    // Show uploaded file name
+                    document.getElementById('fileName').textContent = data.filename;
+                    document.getElementById('uploadedFile').classList.add('active');
+
+                    // Populate textarea with extracted text
+                    document.getElementById('banglaText').value = data.text;
+
+                    showError('✅ ' + data.message, 'success');
+                    setTimeout(hideError, 3000);
+                }
+            })
+            .catch(error => {
+                showLoading(false);
+                showError('Error uploading file: ' + error.message);
+            });
+        }
+
+        // Sample text for demonstration
+        window.addEventListener('load', () => {
+            const sampleText = "আমি বাংলা ভাষা ভালোবাসি। এটি একটি সুন্দর ভাষা।";
+            // Uncomment to load sample text:
+            // document.getElementById('banglaText').value = sampleText;
+        });
+    </script>
+</body>
+</html>

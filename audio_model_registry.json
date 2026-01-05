@@ -1,0 +1,19 @@
+{
+  "models": {
+    "tts_realtime": {
+      "path": "/Users/reeazmahmud/Desktop/Ollama Models/vibevoice",
+      "repo_id": "microsoft/VibeVoice-Realtime-0.5B",
+      "status": "ready"
+    },
+    "asr_realtime": {
+      "path": "/Users/reeazmahmud/Desktop/Ollama Models/fun-asr",
+      "repo_id": "FunAudioLLM/Fun-ASR-Nano-2512",
+      "status": "ready"
+    },
+    "tts_premium": {
+      "path": "/Users/reeazmahmud/Desktop/Ollama Models/cosyvoice",
+      "repo_id": "FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+      "status": "ready"
+    }
+  }
+}

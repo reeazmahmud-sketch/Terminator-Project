@@ -1,0 +1,34 @@
+#!/bin/bash
+# Portable Terminator A2A Server Launcher
+
+find_terminator() {
+    if [ -f "./start_a2a_server.sh" ]; then
+        pwd
+        return 0
+    fi
+
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    if [ -f "$SCRIPT_DIR/../start_a2a_server.sh" ]; then
+        cd "$SCRIPT_DIR/.." && pwd
+        return 0
+    fi
+
+    for dir in ~/Desktop ~/Documents ~/Projects ~; do
+        for name in Terminator-Project Terminator; do
+            if [ -f "$dir/$name/start_a2a_server.sh" ]; then
+                echo "$dir/$name"
+                return 0
+            fi
+        done
+    done
+
+    return 1
+}
+
+TERMINATOR_HOME=$(find_terminator)
+if [ -z "$TERMINATOR_HOME" ]; then
+    echo "❌ Terminator not found"
+    exit 1
+fi
+
+cd "$TERMINATOR_HOME" && ./start_a2a_server.sh "$@"

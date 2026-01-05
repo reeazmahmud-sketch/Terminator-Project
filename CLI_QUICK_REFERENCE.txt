@@ -1,0 +1,162 @@
+╔═══════════════════════════════════════════════════════════════════╗
+║                                                                   ║
+║       TERMINATOR CLI - QUICK REFERENCE CARD                       ║
+║       Gemini Visuals + Claude Commands + Platform Control         ║
+║                                                                   ║
+╚═══════════════════════════════════════════════════════════════════╝
+
+
+🚀 LAUNCH
+═══════════════════════════════════════════════════════════════════
+
+cd ~/Desktop/Terminator-Project
+terminator
+
+
+⚡ CLAUDE CLI COMMANDS (14 Commands)
+═══════════════════════════════════════════════════════════════════
+
+/help                    Show all commands
+/rate-limit-options      Show rate limits and usage (NEW!)
+/model                   View/change AI model
+/context                 Show context usage
+/tokens                  Show token statistics
+/budget                  Show token budget
+/reset                   Reset conversation context
+/history                 View conversation history
+/save [name]             Save current conversation
+/load <name>             Load saved conversation
+/export [file]           Export to markdown
+/settings                View/edit settings
+/clear                   Clear screen
+/exit                    Exit CLI
+
+
+🌐 PLATFORM COMMANDS (16+ Commands)
+═══════════════════════════════════════════════════════════════════
+
+# System Health & Info
+/healthCheck             Run system diagnostics
+/systemIndex             View system index
+/viewAnalysis            Show Claude's analysis
+/status                  Show TERMINATOR status
+/agents                  List all 38+ agents
+/tools                   List available tools
+/logs                    View system logs
+
+# Platform Connections
+/connectiOS <ip>         Connect to iOS app
+/connectAndroid <ip>     Connect to Android app
+/connectMacOS            Connect to macOS app
+/connectWeb              Connect to web interface
+/connectMCP              Connect to MCP servers
+/connections             Show all connections
+
+# Platform Control
+/run <platform> <cmd>    Run command on platform
+/broadcast <command>     Send to all platforms
+/sync                    Sync all platforms
+
+
+💡 QUICK EXAMPLES
+═══════════════════════════════════════════════════════════════════
+
+# Check your usage limits
+/rate-limit-options
+
+# Connect to iPhone
+/connectiOS 192.168.1.10
+
+# Get clipboard from iPhone
+/run ios get clipboard
+
+# Send command to all platforms
+/broadcast show system status
+
+# Check context usage
+/context
+
+# Change model
+/model terminator-ultra
+
+# Save conversation
+/save my_session
+
+# Export to file
+/export chat_log.md
+
+
+📊 RATE LIMIT TIERS
+═══════════════════════════════════════════════════════════════════
+
+FREE:       100 requests/day   |   500K tokens/day    |  $0/month
+PRO:      1,000 requests/day   |     5M tokens/day    | $20/month
+TEAM:    10,000 requests/day   |    50M tokens/day    | $50/month
+ENTERPRISE: Unlimited          |     Unlimited        |  Custom
+
+
+🎯 AVAILABLE MODELS
+═══════════════════════════════════════════════════════════════════
+
+terminator-ultra         Most powerful (default)
+terminator-pro          Fast and efficient
+ollama-llama3           Local, offline
+gemini-pro              Google Gemini
+claude-sonnet           Anthropic Claude
+
+
+📁 FILE LOCATIONS
+═══════════════════════════════════════════════════════════════════
+
+Settings:       ~/.terminator_cli_settings.json
+History:        ~/.terminator_history.json
+Exports:        ~/Desktop/terminator_export_*.md
+
+
+🔥 STATUS BAR INFO (Bottom of screen)
+═══════════════════════════════════════════════════════════════════
+
+Shows:
+  • Sandbox status (sandbox / no sandbox)
+  • Current model
+  • Context remaining (%)
+  • Memory usage (MB)
+
+Example:
+  no sandbox • terminator-ultra (95% context left) • 45.2 MB
+
+
+✨ NATURAL LANGUAGE
+═══════════════════════════════════════════════════════════════════
+
+You don't always need /commands!
+
+Just type naturally:
+  "show me system status"
+  "connect to my iPhone"
+  "what's my disk space"
+  "run health check"
+
+
+🆘 TROUBLESHOOTING
+═══════════════════════════════════════════════════════════════════
+
+CLI won't start?
+  → cd ~/Desktop/Terminator-Project
+  → ./terminator
+
+Command not found?
+  → source ~/.zshrc
+  → Or: ./install_cli.sh
+
+Need dependencies?
+  → pip3 install rich httpx psutil
+
+
+═══════════════════════════════════════════════════════════════════
+
+💾 SAVE THIS FILE FOR QUICK REFERENCE!
+
+Location: ~/Desktop/Terminator-Project/CLI_QUICK_REFERENCE.txt
+
+═══════════════════════════════════════════════════════════════════

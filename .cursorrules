@@ -1,0 +1,30 @@
+# Cursor Rules for Terminator AI System
+
+## Project Overview
+This is the **Terminator AI Agent System**, a multi-interface orchestrator for Gemini and other LLMs.
+- **Root Directory:** `/Users/reeazmahmud/Desktop/Terminator-Project`
+- **CLI Entry:** `./terminator` or `./start_cli.sh`
+- **Web Interface:** `./start_web_terminal.sh`
+
+## AI Behavior & Coding Standards
+1.  **Context Awareness:** Always assume we are in the `Terminator-Project`. Check `GEMINI.md` for architectural context if unsure.
+2.  **Tool Usage:**
+    - If the user asks to "run" or "start" the system, use the provided shell scripts (e.g., `./start_cli.sh`).
+    - Use `./terminator --help` to discover CLI commands before implementing new ones.
+3.  **Code Style:**
+    - Python: Follow PEP 8. Use `rich` for terminal output.
+    - React (Web Terminal): Functional components, hooks.
+4.  **Testing:**
+    - Run diagnostics via CLI: `./terminator /healthCheck`
+    - Run Python tests: `python3 -m unittest discover tests`
+
+## Key Files
+- `terminator.py`: Main entry point.
+- `terminator_universal_cli.py`: CLI logic.
+- `terminator-web-terminal/`: React frontend.
+- `core/`: Agent logic.
+
+## Commands
+- **Start CLI:** `./start_cli.sh`
+- **Start Web:** `./start_web_terminal.sh`
+- **Install:** `./install_cli.sh`

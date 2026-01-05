@@ -1,0 +1,122 @@
+[
+  {
+    "problem_id": "8cba749f067c9da7e8c21e5f0ffbdda4",
+    "problem_description": "57GB log file from infinite loop destroying disk space",
+    "solution_description": "Created Infinite Loop Guardian Agent that:\n- Monitors all log files every 5 seconds\n- Detects repeating patterns (infinite loops)\n- Auto-kills runaway processes\n- Enforces 100MB log file limit\n- Emergency cleanup at 95% disk usage\nIntegrated into all startup scripts.",
+    "source": "internal",
+    "code_snippet": "See core/terminator_infinite_loop_guardian_agent.py",
+    "file_path": "core/terminator_infinite_loop_guardian_agent.py",
+    "timestamp": "2025-12-17T19:28:26.039626",
+    "tags": [
+      "destroying",
+      "loop",
+      "from",
+      "disk",
+      "file",
+      "infinite",
+      "57gb",
+      "space"
+    ],
+    "quality_score": 0.95,
+    "reuse_count": 0
+  },
+  {
+    "problem_id": "edc905fe932992256535f828fbbb5dae",
+    "problem_description": "Users see errors on startup due to missing dependencies, port conflicts, etc",
+    "solution_description": "Created Pre-Flight Check System that runs BEFORE Terminator starts:\n- Checks disk space, dependencies, ports, logs, paths\n- Auto-installs missing packages\n- Auto-fixes port conflicts\n- Auto-creates missing directories\n- Only starts when all checks pass (green signal)\nUser never sees errors anymore.",
+    "source": "internal",
+    "code_snippet": "See core/terminator_preflight_system.py",
+    "file_path": "core/terminator_preflight_system.py",
+    "timestamp": "2025-12-17T19:28:26.040451",
+    "tags": [
+      "conflicts,",
+      "dependencies,",
+      "errors",
+      "users",
+      "port",
+      "missing",
+      "startup"
+    ],
+    "quality_score": 0.95,
+    "reuse_count": 0
+  },
+  {
+    "problem_id": "7a797a1cf17b024c39f82f4447cb18e4",
+    "problem_description": "Wasting time recreating solutions to same problems multiple times",
+    "solution_description": "Created Solution Knowledge Base system that:\n- Searches online BEFORE building anything\n- Documents every fix we make\n- Checks if we've solved problem before\n- Warns about redundant work\n- Learns from GitHub, Stack Overflow\n- Suggests best practices\nMeta-solution to prevent redundant engineering.",
+    "source": "internal",
+    "code_snippet": "See core/terminator_solution_knowledge_base.py",
+    "file_path": "core/terminator_solution_knowledge_base.py",
+    "timestamp": "2025-12-17T19:28:26.065157",
+    "tags": [
+      "solutions",
+      "multiple",
+      "recreating",
+      "wasting",
+      "same",
+      "problems",
+      "times",
+      "time"
+    ],
+    "quality_score": 1.0,
+    "reuse_count": 0
+  },
+  {
+    "id": "gemini_tools_module",
+    "problem": "Need unified interface for Gemini CLI tools in webapp",
+    "solution": "Created terminator_gemini_tools.py with 12 async tool wrappers",
+    "file": "core/terminator_gemini_tools.py",
+    "quality_score": 95,
+    "created": "2025-12-17T23:50:08.524143",
+    "tags": [
+      "gemini",
+      "tools",
+      "webapp",
+      "async"
+    ]
+  },
+  {
+    "id": "mcp_integration",
+    "problem": "Need to integrate Google Vertex AI MCP creative servers",
+    "solution": "Created terminator_mcp_integration.py with 5 server clients (Imagen, Veo, Chirp, Lyria, AVTool)",
+    "file": "core/terminator_mcp_integration.py",
+    "quality_score": 95,
+    "created": "2025-12-17T23:50:08.524151",
+    "tags": [
+      "mcp",
+      "google",
+      "creative",
+      "image",
+      "video",
+      "audio"
+    ]
+  },
+  {
+    "id": "terminator_sdk",
+    "problem": "Need unified SDK for entire TERMINATOR ecosystem",
+    "solution": "Created terminator_sdk.py with 5 namespaces (tools, mcp, agents, infrastructure, llm)",
+    "file": "core/terminator_sdk.py",
+    "quality_score": 98,
+    "created": "2025-12-17T23:50:08.524152",
+    "tags": [
+      "sdk",
+      "unified",
+      "ecosystem",
+      "integration"
+    ]
+  },
+  {
+    "id": "health_dashboard_missing",
+    "problem": "health alias in .zshrc pointing to non-existent script",
+    "solution": "Created ~/system-health-dashboard/health_dashboard.py that integrates with TERMINATOR infrastructure",
+    "file": "~/system-health-dashboard/health_dashboard.py",
+    "quality_score": 90,
+    "created": "2025-12-17T23:50:08.524153",
+    "tags": [
+      "health",
+      "dashboard",
+      "zshrc",
+      "fix"
+    ]
+  }
+]

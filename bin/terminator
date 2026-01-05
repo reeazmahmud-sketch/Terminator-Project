@@ -1,0 +1,54 @@
+#!/bin/bash
+# Portable Terminator Launcher
+# Finds and launches Terminator from anywhere
+# No hardcoded paths - completely portable
+
+# Find Terminator installation
+find_terminator() {
+    # First check if we're already in Terminator directory
+    if [ -f "./start_all.sh" ] && [ -f "./terminator_bridge.py" ]; then
+        pwd
+        return 0
+    fi
+
+    # Check if script is in Terminator/bin
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    if [ -f "$SCRIPT_DIR/../start_all.sh" ]; then
+        cd "$SCRIPT_DIR/.." && pwd
+        return 0
+    fi
+
+    # Search common locations
+    for dir in ~/Desktop ~/Documents ~/Projects ~; do
+        if [ -f "$dir/Terminator-Project/start_all.sh" ]; then
+            echo "$dir/Terminator-Project"
+            return 0
+        fi
+        if [ -f "$dir/Terminator/start_all.sh" ]; then
+            echo "$dir/Terminator"
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+# Main
+TERMINATOR_HOME=$(find_terminator)
+
+if [ -z "$TERMINATOR_HOME" ]; then
+    echo "❌ Terminator not found"
+    echo ""
+    echo "Searched locations:"
+    echo "  • Current directory"
+    echo "  • ~/Desktop/Terminator-Project"
+    echo "  • ~/Desktop/Terminator"
+    echo "  • ~/Documents"
+    echo "  • ~/Projects"
+    echo ""
+    echo "💡 Make sure Terminator is in one of these locations"
+    exit 1
+fi
+
+echo "🤖 Found Terminator at: $TERMINATOR_HOME"
+cd "$TERMINATOR_HOME" && ./start_all.sh "$@"
