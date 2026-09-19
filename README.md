@@ -2,7 +2,7 @@
 
 A sophisticated multi-interface AI agent system with voice capabilities, local and cloud LLM support, and multiple agent orchestration.
 
-## ✨ NEW: Universal CLI (Just Like Claude!)
+## ✨ NEW: Terminator Universal CLI
 
 **Run TERMINATOR from terminal with slash commands:**
 
