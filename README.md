@@ -1,4 +1,4 @@
-# TERMINATOR AI Agent System
+# TERMINATOR PROJECT
 
 A sophisticated multi-interface AI agent system with voice capabilities, local and cloud LLM support, and multiple agent orchestration.
 
